@@ -1,0 +1,96 @@
+/* styles/globals.css */
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+:root {
+  --ink: #0A0812;
+  --ink2: #130F1E;
+  --ink3: #1E1830;
+  --amber: #E8924A;
+  --amber2: #F4AA6A;
+  --violet: #7B6CB0;
+  --sand: #F2EBE0;
+  --mist: #9A8878;
+  --border: rgba(232,146,74,.18);
+  --st: env(safe-area-inset-top, 0px);
+  --sb: env(safe-area-inset-bottom, 0px);
+}
+
+html, body {
+  height: 100%;
+  background: var(--ink);
+  color: var(--sand);
+  font-family: 'DM Sans', sans-serif;
+  overflow-x: hidden;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: var(--ink); }
+::-webkit-scrollbar-thumb { background: var(--ink3); border-radius: 100px; }
+
+/* Buttons */
+.btn-primary {
+  background: var(--amber);
+  color: var(--ink);
+  border: none;
+  padding: 16px 28px;
+  border-radius: 8px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  letter-spacing: .5px;
+  text-transform: uppercase;
+  transition: background .2s, transform .15s;
+  box-shadow: 0 8px 28px rgba(232,146,74,.3);
+}
+.btn-primary:active { transform: scale(.97); background: var(--amber2); }
+.btn-primary:disabled { opacity: .4; cursor: default; }
+
+.btn-ghost {
+  background: transparent;
+  color: var(--sand);
+  border: 1px solid rgba(240,235,224,.18);
+  padding: 14px 22px;
+  border-radius: 8px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  cursor: pointer;
+  transition: border-color .2s, transform .15s;
+}
+.btn-ghost:active { transform: scale(.97); border-color: var(--amber); }
+
+.btn-back {
+  background: rgba(10,8,18,.7);
+  border: 1px solid rgba(255,255,255,.15);
+  color: rgba(240,232,214,.8);
+  padding: 8px 16px;
+  border-radius: 100px;
+  font-size: 13px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: 'DM Sans', sans-serif;
+  transition: border-color .2s;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+.btn-back:active { border-color: var(--amber); }
+
+/* Loading spinner */
+.spinner {
+  width: 28px; height: 28px;
+  border: 2px solid rgba(232,146,74,.2);
+  border-top-color: var(--amber);
+  border-radius: 50%;
+  animation: spin .8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Fade in */
+@keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+.fade-in { animation: fadeIn .4s ease forwards; }
+
+/* Pulse dot */
+@keyframes blink { 0%,100% { opacity: .2; } 50% { opacity: 1; } }
