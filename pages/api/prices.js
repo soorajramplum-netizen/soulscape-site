@@ -1,29 +1,29 @@
 // pages/api/prices.js
-// Returns estimated flight + hotel prices for a destination
-// Uses AI to generate realistic price estimates based on destination + origin city
+import { callAI } from '../../lib/ai'
 
-import { callAI, parseJSON } from '../../lib/ai'
+const PROMPT = (dest, country, originCity) =>
+  `You are a travel price estimator. Give realistic prices for a trip to ${dest}, ${country} from ${originCity}.
 
-const PROMPT = (dest, country, originCity) => `You are a travel price estimator. Give realistic approximate prices for a trip to ${dest}, ${country} for someone travelling from ${originCity}.
+IMPORTANT: Do NOT use dollar signs ($) or any currency symbols in the JSON values. Use only plain numbers and words like "USD" or "INR".
 
-Return ONLY valid JSON:
+Return ONLY this exact JSON structure with no extra text:
 {
   "flights": {
-    "economy": "price range in USD like '$450 - $800'",
-    "notes": "e.g. direct flights available, or best booked 2-3 months ahead"
+    "economy": "450 to 800 USD",
+    "notes": "Best booked 2-3 months ahead. Check Google Flights."
   },
   "hotel": {
-    "budget": "price per night USD like '$30 - $60'",
-    "mid": "price per night USD like '$80 - $150'",
-    "luxury": "price per night USD like '$200 - $500'"
+    "budget": "30 to 60 USD per night",
+    "mid": "80 to 150 USD per night",
+    "luxury": "200 to 500 USD per night"
   },
   "dailyCost": {
-    "budget": "total daily spend budget traveller like '$40 - $60'",
-    "mid": "total daily spend mid traveller like '$100 - $150'"
+    "budget": "40 to 60 USD per day",
+    "mid": "100 to 150 USD per day"
   },
-  "bestTime": "e.g. October to March",
-  "currency": "local currency name and approx exchange rate from USD",
-  "tips": ["one practical money tip", "one practical booking tip"]
+  "bestTime": "October to March",
+  "currency": "Swiss Franc (CHF). 1 USD approx 0.90 CHF",
+  "tips": ["Book accommodation early in peak season", "Look for combo flight and hotel deals"]
 }`
 
 export default async function handler(req, res) {
@@ -37,13 +37,35 @@ export default async function handler(req, res) {
   const aiResult = await callAI(PROMPT(destName, destCountry || '', originCity))
 
   if (!aiResult) {
-    return res.status(503).json({ error: 'AI unavailable', fallback: true })
+    return res.status(503).json({ error: 'AI service unavailable. Check your API keys in Vercel environment variables.' })
   }
 
-  const data = parseJSON(aiResult.text)
-  if (!data) {
-    return res.status(422).json({ error: 'Could not parse price data' })
+  // Clean up the response — remove $ signs which break JSON
+  let cleaned = aiResult.text
+    .replace(/\$\s*/g, '')
+    .replace(/```json/g, '')
+    .replace(/```/g, '')
+    .trim()
+
+  // Extract JSON
+  const match = cleaned.match(/\{[\s\S]*\}/)
+  if (!match) {
+    // Return the raw text as a fallback display
+    return res.status(200).json({
+      raw: aiResult.text,
+      provider: aiResult.provider,
+      parseError: true
+    })
   }
 
-  res.json({ ...data, provider: aiResult.provider, generatedAt: new Date().toISOString() })
+  try {
+    const data = JSON.parse(match[0])
+    res.json({ ...data, provider: aiResult.provider })
+  } catch (e) {
+    res.status(200).json({
+      raw: aiResult.text,
+      provider: aiResult.provider,
+      parseError: true
+    })
+  }
 }
