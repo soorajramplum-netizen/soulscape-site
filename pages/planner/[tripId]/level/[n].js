@@ -1,10 +1,10 @@
-// pages/planner/level/[n].js
+// pages/planner/[tripId]/level/[n].js
 // The actual game session — Duolingo-style interactive levels
 
 import Head from 'next/head'
 import { useRouter } from 'next/router'
 import { useState, useEffect, useRef } from 'react'
-import { LEVEL_META, PHASES } from '../../api/planner'
+import { LEVEL_META, PHASES } from '../../../api/planner'
 
 // ── CONFETTI ────────────────────────────────────────────────────────────────
 function Confetti({ active }) {
