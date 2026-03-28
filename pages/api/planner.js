@@ -1,5 +1,5 @@
 // pages/api/planner.js — Game-first planner API
-import { callAI } from '../../lib/ai'
+import { callAI, parseJSON } from '../../lib/ai'
 
 export const PHASES = [
   { id: 1, name: 'Discover', emoji: '🔍', color: '#E8924A', levels: [1,2,3,4],     unlockWeeks: 999 },
@@ -14,8 +14,8 @@ export const LEVEL_META = {
   2:  { title: 'Fact or Fiction',      emoji: '⚡', phase: 1, game: 'truefalse', xp: 60,  desc: '10 wild truths and myths' },
   3:  { title: 'Neighbourhood Match',  emoji: '🗺️', phase: 1, game: 'match',    xp: 70,  desc: 'Map the areas like a local' },
   4:  { title: 'Iconic Experiences',   emoji: '📸', phase: 1, game: 'quiz',      xp: 60,  desc: 'What makes this place unforgettable' },
-  5:  { title: 'Visa & Entry',         emoji: '🛂', phase: 2, game: 'quiz',      xp: 80,  desc: 'Know before you go' },
-  6:  { title: 'Health & Safety',      emoji: '🏥', phase: 2, game: 'truefalse', xp: 70,  desc: 'Stay safe and prepared' },
+  5:  { title: 'Visa and Entry',       emoji: '🛂', phase: 2, game: 'quiz',      xp: 80,  desc: 'Know before you go' },
+  6:  { title: 'Health and Safety',    emoji: '🏥', phase: 2, game: 'truefalse', xp: 70,  desc: 'Stay safe and prepared' },
   7:  { title: 'Packing Challenge',    emoji: '🧳', phase: 2, game: 'fillblank', xp: 80,  desc: 'Pack smart for this trip' },
   8:  { title: 'Money Mastery',        emoji: '💳', phase: 2, game: 'quiz',      xp: 70,  desc: 'Cash, cards and tipping' },
   9:  { title: 'Getting Around',       emoji: '🚌', phase: 2, game: 'match',     xp: 60,  desc: 'Transport like a local' },
@@ -29,88 +29,232 @@ export const LEVEL_META = {
   17: { title: 'Recipe Challenge',     emoji: '👨‍🍳', phase: 4, game: 'fillblank', xp: 100, desc: 'Learn to cook one iconic dish' },
   18: { title: 'Day 1 Playbook',       emoji: '✈️', phase: 5, game: 'quiz',      xp: 90,  desc: 'Master your first 24 hours' },
   19: { title: 'Hidden Gems Hunt',     emoji: '💎', phase: 5, game: 'match',     xp: 80,  desc: 'Find what tourists miss' },
-  20: { title: 'Mindset & Mantra',     emoji: '🌿', phase: 5, game: 'quiz',      xp: 100, desc: 'Arrive with the right spirit' },
+  20: { title: 'Mindset and Mantra',   emoji: '🌿', phase: 5, game: 'quiz',      xp: 100, desc: 'Arrive with the right spirit' },
 }
 
-const PROMPTS = {
-  1: (dest, country) => `Generate a travel personality quiz for ${dest}, ${country}. 6 multiple-choice questions that reveal what kind of traveller someone will be in ${dest}. Only ONE correct answer per question — it reveals a TRUE interesting fact about ${dest}.
-Return ONLY JSON: {"archetype":"The Temple Wanderer","archetypeDesc":"2 sentences about this travel style in ${dest}","questions":[{"q":"question","options":["A","B","C","D"],"correct":0,"fact":"interesting true fact about ${dest} revealed by this answer"}]}`,
+// Each prompt returns a compact but specific game structure
+function buildPrompt(level, dest, country, travelDate, homecity, days) {
+  const d = dest, c = country || '', t = travelDate || 'next year', h = homecity || 'your city'
 
-  2: (dest, country) => `Generate exactly 10 True/False statements about ${dest}, ${country}. 5 true, 5 false, mixed. Make them genuinely surprising — not obvious.
-Return ONLY JSON: {"statements":[{"statement":"claim about ${dest}","answer":true,"explanation":"why true/false with colour and context","emoji":"🌊"}]}`,
+  const prompts = {
+    1: `Create a 6-question travel personality quiz about ${d}, ${c}.
+Each question has 4 options. The correct answer reveals a TRUE fact about ${d}.
+{
+  "archetype": "The [Descriptive Name] — e.g. The Temple Wanderer",
+  "archetypeDesc": "Two sentences describing this travel style in ${d}.",
+  "questions": [
+    { "q": "Question text about travelling in ${d}?", "options": ["Option A", "Option B", "Option C", "Option D"], "correct": 0, "fact": "Interesting true fact about ${d} that this answer reveals." }
+  ]
+}
+Include exactly 6 questions.`,
 
-  3: (dest, country) => `Generate a neighbourhood matching game for ${dest}, ${country}. 6 real areas with punchy vibe descriptions max 8 words each.
-Return ONLY JSON: {"intro":"one sentence why knowing areas transforms the trip","pairs":[{"area":"neighbourhood name","vibe":"Ancient temples, lantern light, zero tourists","fact":"interesting fact revealed after matching"}]}`,
+    2: `Create exactly 10 True or False statements about ${d}, ${c}. Make 5 true and 5 false, mixed. Make them genuinely surprising.
+{
+  "statements": [
+    { "statement": "Claim about ${d}.", "answer": true, "explanation": "Why this is true with interesting context.", "emoji": "🌊" },
+    { "statement": "Believable myth about ${d}.", "answer": false, "explanation": "Why this is false and what the truth is.", "emoji": "❌" }
+  ]
+}
+Include exactly 10 statements.`,
 
-  4: (dest, country) => `Generate 8 quiz questions about iconic experiences in ${dest}, ${country}. Build excitement — make someone WANT to visit.
-Return ONLY JSON: {"questions":[{"q":"evocative question about an experience in ${dest}","options":["A","B","C","D"],"correct":0,"revelation":"full story behind this experience — why extraordinary"}]}`,
+    3: `Create a neighbourhood matching game for ${d}, ${c} with 6 pairs.
+{
+  "intro": "One sentence on why knowing ${d}s areas transforms the trip.",
+  "pairs": [
+    { "area": "Neighbourhood Name", "vibe": "Short punchy description max 8 words", "fact": "Interesting fact revealed after matching." }
+  ]
+}
+Include exactly 6 pairs.`,
 
-  5: (dest, country) => `Generate 8 visa and entry quiz questions for ${dest}, ${country}. Specific, accurate, plausible wrong answers.
-Return ONLY JSON: {"questions":[{"q":"visa or entry question","options":["A","B","C","D"],"correct":0,"explanation":"why correct and what to actually do"}]}`,
+    4: `Create 6 quiz questions about iconic experiences in ${d}, ${c} that build excitement.
+{
+  "questions": [
+    { "q": "Evocative question about an experience in ${d}?", "options": ["Option A", "Option B", "Option C", "Option D"], "correct": 0, "revelation": "The full story — why this experience is extraordinary." }
+  ]
+}
+Include exactly 6 questions.`,
 
-  6: (dest, country) => `Generate 10 health and safety True/False statements for ${dest}, ${country}. Mix facts with common misconceptions.
-Return ONLY JSON: {"statements":[{"statement":"health or safety claim","answer":true,"explanation":"practical advice","emoji":"💊"}]}`,
+    5: `Create 6 quiz questions about visa and entry requirements for ${d}, ${c}.
+{
+  "questions": [
+    { "q": "Question about visa or entry for ${d}?", "options": ["Option A", "Option B", "Option C", "Option D"], "correct": 0, "explanation": "Why this is correct and what to actually do." }
+  ]
+}
+Include exactly 6 questions.`,
 
-  7: (dest, country, travelDate, days) => `Generate 8 packing fill-in-the-blank questions for ${dest}, ${country} in ${travelDate} for ${days} days. Each sentence has one blank, 3 word options.
-Return ONLY JSON: {"intro":"packing philosophy for this trip","questions":[{"sentence":"For ${dest}, always pack ___ because the humidity is extreme.","blank":"the missing word","options":["correct answer","wrong 1","wrong 2"],"correct":0,"tip":"practical tip explaining why"}]}`,
+    6: `Create 8 True or False health and safety statements about ${d}, ${c}.
+{
+  "statements": [
+    { "statement": "Health or safety claim about ${d}.", "answer": true, "explanation": "Practical explanation and advice.", "emoji": "💊" }
+  ]
+}
+Include exactly 8 statements, mix of true and false.`,
 
-  8: (dest, country) => `Generate 8 money and payments quiz questions for ${dest}, ${country}. Currency, tipping, bargaining, card use.
-Return ONLY JSON: {"questions":[{"q":"money question for ${dest}","options":["A","B","C","D"],"correct":0,"explanation":"practical money advice"}]}`,
+    7: `Create 6 fill-in-the-blank packing questions for ${d}, ${c} in ${t} for ${days} days.
+Each sentence has one blank marked as ___ with 3 word options.
+{
+  "intro": "Packing philosophy for this specific trip.",
+  "questions": [
+    { "sentence": "For ${d} in ${t}, always pack ___ because the humidity is extreme.", "blank": "light breathable clothing", "options": ["light breathable clothing", "a heavy winter coat", "formal business attire"], "correct": 0, "tip": "Practical tip explaining why." }
+  ]
+}
+Include exactly 6 questions.`,
 
-  9: (dest, country) => `Generate a transport matching game for ${dest}, ${country}. 6 pairs of transport mode matched to cost, timing, or use case — max 10 words per vibe.
-Return ONLY JSON: {"pairs":[{"area":"transport mode","vibe":"cost and when to use it — 8 words max","fact":"insider transport tip revealed after matching"}]}`,
+    8: `Create 6 quiz questions about money and payments in ${d}, ${c}.
+{
+  "questions": [
+    { "q": "Money question about ${d}?", "options": ["Option A", "Option B", "Option C", "Option D"], "correct": 0, "explanation": "Practical money advice." }
+  ]
+}
+Include exactly 6 questions.`,
 
-  10: (dest, country) => `Generate 12 essential travel flashcards for ${dest}, ${country}.
-Return ONLY JSON: {"language":"language name","script":"Latin","cards":[{"front":"Hello","back":"local word","pronunciation":"phonetic heh-LOH","category":"greeting","emoji":"👋","memoryHook":"memory trick"}]}
-Include: hello, goodbye, please, thank you, sorry, yes, no, how much, bathroom, help, I don't understand, do you speak English`,
+    9: `Create a transport matching game for ${d}, ${c} with 6 pairs.
+Match transport mode to cost or use case.
+{
+  "pairs": [
+    { "area": "Transport mode name", "vibe": "Cost and when to use it, max 8 words", "fact": "Insider transport tip revealed after matching." }
+  ]
+}
+Include exactly 6 pairs.`,
 
-  11: (dest, country) => `Generate 10 food and restaurant flashcards for ${dest}, ${country}. Ordering, dietary needs, compliments, bill.
-Return ONLY JSON: {"cards":[{"front":"English phrase","back":"local language","pronunciation":"phonetic","category":"ordering","emoji":"🍽","memoryHook":"trick"}]}`,
+    10: `Create 12 essential travel flashcards for ${d}, ${c}.
+{
+  "language": "Language name",
+  "script": "Latin or Arabic or Cyrillic etc",
+  "cards": [
+    { "front": "Hello", "back": "Local word", "pronunciation": "Phonetic spelling", "category": "greeting", "emoji": "👋", "memoryHook": "Memory trick to remember this word." }
+  ]
+}
+Include exactly 12 cards: hello, goodbye, please, thank you, sorry, yes, no, how much, where is bathroom, help, I do not understand, do you speak English.`,
 
-  12: (dest, country) => `Generate 10 emergency flashcards for ${dest}, ${country}. Police, medical, lost, theft.
-Return ONLY JSON: {"emergencyNumbers":{"police":"number","ambulance":"number"},"cards":[{"front":"English phrase","back":"local language","pronunciation":"phonetic","category":"emergency","emoji":"🆘","memoryHook":"trick"}]}`,
+    11: `Create 10 food and restaurant flashcards for ${d}, ${c}.
+{
+  "cards": [
+    { "front": "English phrase", "back": "Local language", "pronunciation": "Phonetic", "category": "ordering", "emoji": "🍽", "memoryHook": "Memory trick." }
+  ]
+}
+Include exactly 10 cards covering ordering, dietary needs, compliments, and asking for the bill.`,
 
-  13: (dest, country) => `Generate 8 cultural etiquette scenario quiz questions for ${dest}, ${country}. Scenario-based, wrong answers are common Western assumptions.
-Return ONLY JSON: {"questions":[{"q":"You are invited to a local home in ${dest}. You should...","options":["A","B","C","D"],"correct":0,"explanation":"cultural reasoning"}]}`,
+    12: `Create 10 emergency flashcards for ${d}, ${c}.
+{
+  "emergencyNumbers": { "police": "number", "ambulance": "number" },
+  "cards": [
+    { "front": "English phrase", "back": "Local language", "pronunciation": "Phonetic", "category": "emergency", "emoji": "🆘", "memoryHook": "Context or trick." }
+  ]
+}
+Include exactly 10 cards for police, medical, lost, theft, and directions when desperate.`,
 
-  14: (dest, country) => `Generate a dish-matching game for ${dest}, ${country}. 6 pairs: dish name matched to its defining characteristic.
-Return ONLY JSON: {"pairs":[{"area":"🍜 Dish Name","vibe":"its defining characteristic in 6-8 words","fact":"the story or secret behind this dish"}]}`,
+    13: `Create 6 cultural etiquette scenario quiz questions for ${d}, ${c}.
+Wrong answers should be common Western assumptions.
+{
+  "questions": [
+    { "q": "Scenario: You are invited to a local home in ${d}. You should...", "options": ["Option A", "Option B", "Option C", "Option D"], "correct": 0, "explanation": "Cultural reasoning behind the correct answer." }
+  ]
+}
+Include exactly 6 scenario questions.`,
 
-  15: (dest, country) => `Generate 8 market and street food quiz questions for ${dest}, ${country}.
-Return ONLY JSON: {"questions":[{"q":"market or street food question","options":["A","B","C","D"],"correct":0,"explanation":"practical food advice"}]}`,
+    14: `Create a dish matching game for ${d}, ${c} with 6 pairs.
+Match iconic dish to its defining characteristic.
+{
+  "pairs": [
+    { "area": "Dish name with emoji", "vibe": "Its defining characteristic in 6 to 8 words", "fact": "The story or secret behind this dish." }
+  ]
+}
+Include exactly 6 pairs.`,
 
-  16: (dest, country) => `Generate 10 drink culture True/False statements for ${dest}, ${country}. Coffee, alcohol, tea, toasting customs.
-Return ONLY JSON: {"statements":[{"statement":"drink culture claim","answer":true,"explanation":"context and advice","emoji":"☕"}]}`,
+    15: `Create 6 quiz questions about markets and street food in ${d}, ${c}.
+{
+  "questions": [
+    { "q": "Street food or market question for ${d}?", "options": ["Option A", "Option B", "Option C", "Option D"], "correct": 0, "explanation": "Practical food advice." }
+  ]
+}
+Include exactly 6 questions.`,
 
-  17: (dest, country) => `Generate 8 recipe fill-in-the-blank questions for the most iconic dish of ${dest}, ${country}. Ingredients, techniques, cultural notes.
-Return ONLY JSON: {"dish":"dish name","emoji":"🍜","story":"one sentence cultural significance","questions":[{"sentence":"The ___ is added last to preserve its bright colour.","blank":"missing word","options":["correct","wrong 1","wrong 2"],"correct":0,"tip":"cooking insight"}]}`,
+    16: `Create 8 True or False drink culture statements about ${d}, ${c}.
+Cover coffee, alcohol, tea, and toasting customs.
+{
+  "statements": [
+    { "statement": "Drink culture claim about ${d}.", "answer": true, "explanation": "Context and practical advice.", "emoji": "☕" }
+  ]
+}
+Include exactly 8 statements, mix of true and false.`,
 
-  18: (dest, country, travelDate, homecity, days) => `Generate 8 Day 1 quiz questions for ${dest}, ${country} for a traveller from ${homecity} for ${days} days.
-Return ONLY JSON: {"questions":[{"q":"Day 1 decision question","options":["A","B","C","D"],"correct":0,"explanation":"local knowledge behind this answer"}]}`,
+    17: `Create 6 fill-in-the-blank recipe questions for the most iconic dish of ${d}, ${c}.
+{
+  "dish": "Dish name",
+  "emoji": "Food emoji",
+  "story": "One sentence on the cultural significance of this dish.",
+  "questions": [
+    { "sentence": "The ___ is added last to keep its bright colour.", "blank": "correct answer", "options": ["correct answer", "wrong option one", "wrong option two"], "correct": 0, "tip": "Cooking insight explaining why." }
+  ]
+}
+Include exactly 6 questions.`,
 
-  19: (dest, country) => `Generate a hidden gems matching game for ${dest}, ${country}. 6 lesser-known places matched to what makes them special.
-Return ONLY JSON: {"pairs":[{"area":"hidden gem name","vibe":"what makes it special in 7-8 words","fact":"why it is worth seeking out"}]}`,
+    18: `Create 6 Day 1 quiz questions for ${d}, ${c} for a traveller from ${h} for ${days} days.
+Cover airport transfer, first meal, common mistakes, and orientation.
+{
+  "questions": [
+    { "q": "Day 1 decision question for ${d}?", "options": ["Option A", "Option B", "Option C", "Option D"], "correct": 0, "explanation": "Local knowledge behind this answer." }
+  ]
+}
+Include exactly 6 questions.`,
 
-  20: (dest, country) => `Generate 8 mindset and travel philosophy quiz questions for ${dest}, ${country}. Thoughtful — about pace, attitude, presence. Feel wise not trivial.
-Return ONLY JSON: {"mantra":"5-7 word travel mantra for ${dest}","questions":[{"q":"thoughtful question about being present in ${dest}","options":["A","B","C","D"],"correct":0,"wisdom":"genuine travel insight 1-2 sentences"}]}`,
+    19: `Create a hidden gems matching game for ${d}, ${c} with 6 pairs.
+These are places most tourists completely miss.
+{
+  "pairs": [
+    { "area": "Hidden gem name", "vibe": "What makes it special in 7 to 8 words", "fact": "Why it is worth seeking out." }
+  ]
+}
+Include exactly 6 pairs.`,
+
+    20: `Create 6 mindset and travel philosophy quiz questions for ${d}, ${c}.
+Make them feel wise and thoughtful, not trivial.
+{
+  "mantra": "A 5 to 7 word travel mantra specific to ${d}",
+  "questions": [
+    { "q": "Thoughtful question about being truly present in ${d}?", "options": ["Option A", "Option B", "Option C", "Option D"], "correct": 0, "wisdom": "Genuine travel insight, 1 to 2 sentences." }
+  ]
+}
+Include exactly 6 questions.`,
+  }
+
+  return prompts[level] || null
 }
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end()
+
   const { level, dest, country, travelDate, homecity, days } = req.body
-  if (!level || !dest) return res.status(400).json({ error: 'level and dest required' })
-  const promptFn = PROMPTS[level]
-  if (!promptFn) return res.status(400).json({ error: `Unknown level: ${level}` })
-  const prompt = promptFn(dest, country||'', travelDate||'your travel month', homecity||'your city', days||7)
-  const aiResult = await callAI(prompt)
-  if (!aiResult) return res.status(503).json({ error: 'AI unavailable' })
-  let cleaned = aiResult.text.replace(/```json/g,'').replace(/```/g,'').trim()
-  const match = cleaned.match(/\{[\s\S]*\}/)
-  if (!match) return res.status(422).json({ error: 'Parse failed', raw: aiResult.text })
-  try {
-    const data = JSON.parse(match[0])
-    return res.json({ data, level, provider: aiResult.provider })
-  } catch(e) {
-    return res.status(422).json({ error: 'JSON error', raw: aiResult.text })
+  if (!level || !dest) return res.status(400).json({ error: 'level and dest are required' })
+
+  const prompt = buildPrompt(
+    parseInt(level), dest,
+    country || '',
+    travelDate || 'your travel month',
+    homecity || 'your city',
+    days || 7
+  )
+
+  if (!prompt) return res.status(400).json({ error: `Unknown level: ${level}` })
+
+  const aiResult = await callAI(prompt, 1800)
+
+  if (!aiResult) {
+    return res.status(503).json({
+      error: 'AI service unavailable. Check that GEMINI_API_KEY, GROQ_API_KEY, or OPENROUTER_API_KEY are set in your Vercel environment variables.',
+    })
   }
+
+  const data = parseJSON(aiResult.text)
+
+  if (!data) {
+    return res.status(422).json({
+      error: 'Parse failed — the AI response could not be parsed as JSON.',
+      raw: aiResult.text.slice(0, 500),
+      provider: aiResult.provider,
+    })
+  }
+
+  return res.json({ data, level, provider: aiResult.provider })
 }

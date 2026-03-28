@@ -1,14 +1,21 @@
 // pages/api/prices.js
 import { callAI, parseJSON } from '../../lib/ai'
 
-const PROMPT = (dest, country, originCity) =>
-  `You are a travel price estimator. Return JSON with realistic travel costs for ${dest}, ${country} from ${originCity}.
-No markdown, no backticks, no dollar signs anywhere. Use words like "USD" not symbols. Valid JSON only.
+export default async function handler(req, res) {
+  if (req.method !== 'POST') return res.status(405).end()
+  const { destName, destCountry, originCity } = req.body
+  if (!destName || !originCity) {
+    return res.status(400).json({ error: 'destName and originCity are required' })
+  }
 
+  const prompt = `Estimate travel costs for a trip from ${originCity} to ${destName}, ${destCountry || ''}.
+Do NOT use dollar signs anywhere in your response. Use the word USD or the local currency name instead.
+
+Return this exact JSON structure with real estimates:
 {
   "flights": {
     "economy": "450 to 800 USD",
-    "notes": "Book 2-3 months ahead. Check Google Flights for best deals."
+    "notes": "Book 2 to 3 months ahead for best prices"
   },
   "hotel": {
     "budget": "30 to 60 USD per night",
@@ -16,26 +23,31 @@ No markdown, no backticks, no dollar signs anywhere. Use words like "USD" not sy
     "luxury": "200 to 500 USD per night"
   },
   "dailyCost": {
-    "budget": "40 to 60 USD total per day",
-    "mid": "100 to 150 USD total per day"
+    "budget": "40 to 70 USD total per day including meals and local transport",
+    "mid": "100 to 160 USD total per day"
   },
-  "bestTime": "October to April",
-  "currency": "Euro (EUR). Roughly 0.92 EUR per 1 USD.",
-  "tips": ["Tip 1 specific to this destination", "Tip 2 specific to this destination"]
+  "bestTime": "October to March",
+  "currency": "Euro (EUR). Approximately 0.92 EUR per 1 USD.",
+  "tips": ["Practical money saving tip for this destination", "Practical booking tip for this route"]
 }`
 
-export default async function handler(req, res) {
-  if (req.method !== 'POST') return res.status(405).end()
-  const { destName, destCountry, originCity } = req.body
-  if (!destName || !originCity) return res.status(400).json({ error: 'destName and originCity required' })
-
-  const aiResult = await callAI(PROMPT(destName, destCountry || '', originCity), 800)
-  if (!aiResult) return res.status(503).json({ error: 'AI unavailable — check API keys in Vercel' })
-
-  const data = parseJSON(aiResult.text)
-  if (!data) {
-    // Show raw text rather than blank screen
-    return res.json({ raw: aiResult.text, parseError: true, provider: aiResult.provider })
+  const aiResult = await callAI(prompt, 900)
+  if (!aiResult) {
+    return res.status(503).json({ error: 'AI unavailable — check your API keys in Vercel environment variables' })
   }
-  res.json({ ...data, provider: aiResult.provider })
+
+  // Remove any dollar signs that slipped through before parsing
+  const cleaned = aiResult.text.replace(/\$\s*/g, '')
+  const data = parseJSON(cleaned)
+
+  if (!data || !data.flights) {
+    // Still return something displayable
+    return res.json({
+      parseError: true,
+      raw: aiResult.text,
+      provider: aiResult.provider,
+    })
+  }
+
+  return res.json({ ...data, provider: aiResult.provider })
 }
