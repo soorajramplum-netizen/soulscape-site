@@ -34,7 +34,7 @@ export default function TripMap() {
 
   const weeks = weeksUntil(trip.travelDate)
   const done = Object.values(progress).filter(v => v.complete).length
-  const pct = Math.round(done / 20 * 100)
+  const pct = Math.round(done / 8 * 100)
   const xpThisTrip = Object.values(progress).reduce((sum, v) => sum + (v.xpEarned || 0), 0)
 
   function isPhaseUnlocked(phase) {

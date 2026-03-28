@@ -683,7 +683,7 @@ export default function LevelGame() {
 
         {/* Next level or back */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12, width: '100%', maxWidth: 320 }}>
-          {levelNum < 20 && LEVEL_META[levelNum + 1] && (
+          {levelNum < 8 && LEVEL_META[levelNum + 1] && (
             <button className="btn-primary" style={{ padding: '16px 0' }}
               onClick={() => router.push(`/planner/${tripId}/level/${levelNum + 1}`)}>
               Next: {LEVEL_META[levelNum + 1].emoji} {LEVEL_META[levelNum + 1].title} →
