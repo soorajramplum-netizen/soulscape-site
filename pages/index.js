@@ -95,6 +95,7 @@ export default function Home() {
         <div style={styles.bottomNav}>
           <button style={styles.navBtn} onClick={() => router.push('/scapedex')}>📖 ScapeDex</button>
           <button style={styles.navBtn} onClick={() => router.push('/passport')}>🛂 Passport</button>
+          <button style={{...styles.navBtn, borderColor:'rgba(232,146,74,.2)', color:'var(--amber)'}} onClick={() => router.push('/planner')}>✈ Trip Planner</button>
         </div>
       </main>
 
