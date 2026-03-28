@@ -1,19 +1,54 @@
+// pages/api/phrasebook.js
+// Returns essential travel phrases for a destination's language
+// Powered by AI — no hardcoded datasets needed
+
 import { callAI, parseJSON } from '../../lib/ai'
+
+const PROMPT = (dest, country) => `You are a travel language coach. Generate essential phrases for a tourist visiting ${dest}, ${country}.
+
+Return ONLY valid JSON:
+{
+  "language": "name of primary language spoken",
+  "script": "Latin / Arabic / Cyrillic / etc",
+  "phrases": [
+    {
+      "category": "Greeting",
+      "english": "Hello",
+      "local": "local language text",
+      "pronunciation": "phonetic English pronunciation like heh-LOH",
+      "emoji": "relevant emoji"
+    }
+  ],
+  "culturalTips": [
+    "one key cultural do",
+    "one key cultural don't",
+    "one surprising etiquette fact"
+  ],
+  "emergencyNumbers": {
+    "police": "number",
+    "ambulance": "number",
+    "fire": "number"
+  }
+}
+
+Include exactly 12 phrases covering: greeting, goodbye, thank you, please, sorry, help, how much, where is the bathroom, I don't understand, can you speak English, delicious (for food), one beer/coffee please.`
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end()
+
   const { destName, destCountry } = req.body
   if (!destName) return res.status(400).json({ error: 'destName required' })
 
-  const prompt = `Give 10 essential travel phrases for ${destName}${destCountry ? ', ' + destCountry : ''}.
+  const aiResult = await callAI(PROMPT(destName, destCountry || ''))
 
-Reply with this JSON object and nothing else:
-{"language":"Language Name","script":"Latin","phrases":[{"category":"Greeting","english":"Hello","local":"local word","pronunciation":"phonetic","emoji":"👋"},{"category":"Thanks","english":"Thank you","local":"local word","pronunciation":"phonetic","emoji":"🙏"},{"category":"Please","english":"Please","local":"local word","pronunciation":"phonetic","emoji":"🤲"},{"category":"Sorry","english":"Sorry","local":"local word","pronunciation":"phonetic","emoji":"😊"},{"category":"Help","english":"Help!","local":"local word","pronunciation":"phonetic","emoji":"🆘"},{"category":"Price","english":"How much?","local":"local phrase","pronunciation":"phonetic","emoji":"💰"},{"category":"Bathroom","english":"Where is the bathroom?","local":"local phrase","pronunciation":"phonetic","emoji":"🚻"},{"category":"Language","english":"I do not understand","local":"local phrase","pronunciation":"phonetic","emoji":"😕"},{"category":"Food","english":"This is delicious!","local":"local phrase","pronunciation":"phonetic","emoji":"😋"},{"category":"Farewell","english":"Goodbye","local":"local word","pronunciation":"phonetic","emoji":"👋"}],"culturalTips":["Cultural tip 1.","Cultural tip 2.","Cultural tip 3."],"emergencyNumbers":{"police":"number","ambulance":"number","fire":"number"}}`
+  if (!aiResult) {
+    return res.status(503).json({ error: 'AI unavailable' })
+  }
 
-  const ai = await callAI(prompt, 1200)
-  if (!ai) return res.status(503).json({ error: 'AI unavailable. Check API keys in Vercel.' })
+  const data = parseJSON(aiResult.text)
+  if (!data) {
+    return res.status(422).json({ error: 'Could not parse phrase data' })
+  }
 
-  const data = parseJSON(ai.text)
-  if (!data?.phrases) return res.status(422).json({ error: 'Could not parse phrases. Please try again.' })
-  return res.json({ ...data, provider: ai.provider })
+  res.json({ ...data, provider: aiResult.provider })
 }

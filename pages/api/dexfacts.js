@@ -1,19 +1,29 @@
+// pages/api/dexfacts.js
 import { callAI, parseJSON } from '../../lib/ai'
+
+const PROMPT = (dest, country) => `You are a travel encyclopaedia. Generate fascinating facts about ${dest}, ${country}.
+
+Return ONLY valid JSON:
+{
+  "story": "A compelling 2-3 sentence historical or legendary story about this place",
+  "fact": "One surprising scientific or geographical fact",
+  "bestTime": "Best months to visit and why",
+  "cuisine": "Name of the most famous local dish",
+  "hiddenGem": "One thing most tourists miss but shouldn't",
+  "localWord": "One word or phrase in the local language that captures the spirit of this place, with its meaning"
+}`
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end()
+
   const { destName, destCountry } = req.body
   if (!destName) return res.status(400).json({ error: 'destName required' })
 
-  const prompt = `Give fascinating facts about ${destName}${destCountry ? ', ' + destCountry : ''}.
+  const aiResult = await callAI(PROMPT(destName, destCountry || ''))
+  if (!aiResult) return res.status(503).json({ error: 'AI unavailable' })
 
-Reply with this JSON object and nothing else:
-{"story":"A compelling 2-sentence historical or legendary story about this place.","fact":"One surprising fact most people do not know.","bestTime":"Best months to visit and why.","cuisine":"Name and one-sentence description of the most famous local dish.","hiddenGem":"One thing most tourists miss but should not.","localWord":"One local word with its meaning that captures the spirit of this place."}`
+  const data = parseJSON(aiResult.text)
+  if (!data) return res.status(422).json({ error: 'Could not parse facts' })
 
-  const ai = await callAI(prompt, 700)
-  if (!ai) return res.status(503).json({ error: 'AI unavailable' })
-
-  const data = parseJSON(ai.text)
-  if (!data?.story) return res.status(422).json({ error: 'Could not parse facts. Try again.' })
-  return res.json({ ...data, provider: ai.provider })
+  res.json({ ...data, provider: aiResult.provider })
 }
