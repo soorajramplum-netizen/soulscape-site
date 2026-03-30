@@ -6,6 +6,60 @@ import { DESTINATIONS, CATS, getDestinationById, slugify } from '../../data/dest
 
 const PEXELS_KEY = process.env.NEXT_PUBLIC_PEXELS_KEY || ''
 
+// Top countries with currency info for the dropdown
+const COUNTRIES = [
+  {name:'India',flag:'🇮🇳',currency:'INR',symbol:'₹',rate:83.5},
+  {name:'United States',flag:'🇺🇸',currency:'USD',symbol:'$',rate:1},
+  {name:'United Kingdom',flag:'🇬🇧',currency:'GBP',symbol:'£',rate:0.79},
+  {name:'United Arab Emirates',flag:'🇦🇪',currency:'AED',symbol:'AED',rate:3.67},
+  {name:'Singapore',flag:'🇸🇬',currency:'SGD',symbol:'SGD',rate:1.34},
+  {name:'Australia',flag:'🇦🇺',currency:'AUD',symbol:'AUD',rate:1.55},
+  {name:'Canada',flag:'🇨🇦',currency:'CAD',symbol:'CAD',rate:1.36},
+  {name:'Germany',flag:'🇩🇪',currency:'EUR',symbol:'€',rate:0.92},
+  {name:'France',flag:'🇫🇷',currency:'EUR',symbol:'€',rate:0.92},
+  {name:'Japan',flag:'🇯🇵',currency:'JPY',symbol:'¥',rate:149},
+  {name:'China',flag:'🇨🇳',currency:'CNY',symbol:'¥',rate:7.24},
+  {name:'South Korea',flag:'🇰🇷',currency:'KRW',symbol:'₩',rate:1330},
+  {name:'Brazil',flag:'🇧🇷',currency:'BRL',symbol:'R$',rate:4.97},
+  {name:'South Africa',flag:'🇿🇦',currency:'ZAR',symbol:'R',rate:18.6},
+  {name:'Nigeria',flag:'🇳🇬',currency:'NGN',symbol:'₦',rate:1550},
+  {name:'Egypt',flag:'🇪🇬',currency:'EGP',symbol:'E£',rate:30.9},
+  {name:'Saudi Arabia',flag:'🇸🇦',currency:'SAR',symbol:'SR',rate:3.75},
+  {name:'Turkey',flag:'🇹🇷',currency:'TRY',symbol:'₺',rate:32.1},
+  {name:'Mexico',flag:'🇲🇽',currency:'MXN',symbol:'MX$',rate:17.1},
+  {name:'Indonesia',flag:'🇮🇩',currency:'IDR',symbol:'Rp',rate:15800},
+  {name:'Malaysia',flag:'🇲🇾',currency:'MYR',symbol:'RM',rate:4.72},
+  {name:'Thailand',flag:'🇹🇭',currency:'THB',symbol:'฿',rate:35.1},
+  {name:'Philippines',flag:'🇵🇭',currency:'PHP',symbol:'₱',rate:56.5},
+  {name:'Pakistan',flag:'🇵🇰',currency:'PKR',symbol:'Rs',rate:278},
+  {name:'Bangladesh',flag:'🇧🇩',currency:'BDT',symbol:'৳',rate:110},
+  {name:'Sri Lanka',flag:'🇱🇰',currency:'LKR',symbol:'Rs',rate:305},
+  {name:'Nepal',flag:'🇳🇵',currency:'NPR',symbol:'Rs',rate:133},
+  {name:'New Zealand',flag:'🇳🇿',currency:'NZD',symbol:'NZ$',rate:1.63},
+  {name:'Switzerland',flag:'🇨🇭',currency:'CHF',symbol:'CHF',rate:0.89},
+  {name:'Sweden',flag:'🇸🇪',currency:'SEK',symbol:'kr',rate:10.4},
+  {name:'Norway',flag:'🇳🇴',currency:'NOK',symbol:'kr',rate:10.7},
+  {name:'Denmark',flag:'🇩🇰',currency:'DKK',symbol:'kr',rate:6.88},
+  {name:'Netherlands',flag:'🇳🇱',currency:'EUR',symbol:'€',rate:0.92},
+  {name:'Spain',flag:'🇪🇸',currency:'EUR',symbol:'€',rate:0.92},
+  {name:'Italy',flag:'🇮🇹',currency:'EUR',symbol:'€',rate:0.92},
+  {name:'Portugal',flag:'🇵🇹',currency:'EUR',symbol:'€',rate:0.92},
+  {name:'Greece',flag:'🇬🇷',currency:'EUR',symbol:'€',rate:0.92},
+  {name:'Poland',flag:'🇵🇱',currency:'PLN',symbol:'zł',rate:3.97},
+  {name:'Russia',flag:'🇷🇺',currency:'RUB',symbol:'₽',rate:91.2},
+  {name:'Kenya',flag:'🇰🇪',currency:'KES',symbol:'KSh',rate:130},
+  {name:'Ghana',flag:'🇬🇭',currency:'GHS',symbol:'GH₵',rate:12.4},
+  {name:'Ethiopia',flag:'🇪🇹',currency:'ETB',symbol:'Br',rate:56.5},
+  {name:'Morocco',flag:'🇲🇦',currency:'MAD',symbol:'DH',rate:10.1},
+  {name:'Jordan',flag:'🇯🇴',currency:'JOD',symbol:'JD',rate:0.71},
+  {name:'Israel',flag:'🇮🇱',currency:'ILS',symbol:'₪',rate:3.72},
+  {name:'Argentina',flag:'🇦🇷',currency:'ARS',symbol:'$',rate:870},
+  {name:'Colombia',flag:'🇨🇴',currency:'COP',symbol:'$',rate:3950},
+  {name:'Chile',flag:'🇨🇱',currency:'CLP',symbol:'$',rate:945},
+  {name:'Peru',flag:'🇵🇪',currency:'PEN',symbol:'S/',rate:3.75},
+  {name:'Vietnam',flag:'🇻🇳',currency:'VND',symbol:'₫',rate:24500},
+]
+
 export default function Place() {
   const router = useRouter()
   const { id } = router.query
@@ -19,6 +73,10 @@ export default function Place() {
   const [phrasebook, setPhrasebook] = useState(null)
   const [phraseLoading, setPhraseLoading] = useState(false)
   const [originInput, setOriginInput] = useState('')
+  const [selectedCountry, setSelectedCountry] = useState(null)
+  const [countrySearch, setCountrySearch] = useState('')
+  const [showCountryDrop, setShowCountryDrop] = useState(false)
+  const [tripDays, setTripDays] = useState(7)
 
   useEffect(() => {
     if (!id) return
@@ -26,7 +84,19 @@ export default function Place() {
     if (!d) { router.push('/'); return }
     setDest(d)
     stampVisit(d)
-    setOriginInput(localStorage.getItem('ss_city') || '')
+    const savedCity = localStorage.getItem('ss_city') || ''
+    setOriginInput(savedCity)
+    // Try to match saved city to a country
+    const savedCountry = localStorage.getItem('ss_country')
+    if (savedCountry) {
+      const c = COUNTRIES.find(c => c.name === savedCountry)
+      if (c) { setSelectedCountry(c); setCountrySearch(c.flag + ' ' + c.name) }
+    } else if (savedCity) {
+      // Auto-detect from city string
+      const cityLower = savedCity.toLowerCase()
+      const found = COUNTRIES.find(c => cityLower.includes(c.name.toLowerCase()))
+      if (found) { setSelectedCountry(found); setCountrySearch(found.flag + ' ' + found.name) }
+    }
     fetchVideo(d)
   }, [id])
 
@@ -70,12 +140,14 @@ export default function Place() {
   }
 
   async function loadPrices() {
-    const city = originInput.trim()
-    if (!city) { alert('Enter your departure city first, e.g. Chennai, India'); return }
-    localStorage.setItem('ss_city', city)
+    if (!selectedCountry) { alert('Please select your country first'); return }
+    const city = countrySearch.replace(selectedCountry.flag, '').trim() || selectedCountry.name
+    const originCity = city + (city.includes(selectedCountry.name) ? '' : ', ' + selectedCountry.name)
+    localStorage.setItem('ss_city', originCity)
+    localStorage.setItem('ss_country', selectedCountry.name)
     setPriceLoading(true); setPriceData(null)
     try {
-      const res = await fetch('/api/prices',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({destName:dest.name,destCountry:dest.country,destLat:dest.lat,destLng:dest.lng,originCity:city})})
+      const res = await fetch('/api/prices',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({destName:dest.name,destCountry:dest.country,destLat:dest.lat,destLng:dest.lng,originCity,tripDays,originCurrency:selectedCountry.currency,originSymbol:selectedCountry.symbol,originRate:selectedCountry.rate})})
       setPriceData(await res.json())
     } catch(e) { setPriceData({error:'Connection error. Please try again.'}) }
     setPriceLoading(false)
@@ -142,13 +214,61 @@ export default function Place() {
     {/* PRICES MODAL */}
     {activeModal==='prices'&&(
       <Modal title="✈ Price Estimate" onClose={()=>setActiveModal(null)}>
-        <p style={{fontSize:14,color:'var(--mist)',marginBottom:16}}>Estimated costs from your city to <b style={{color:'var(--amber)'}}>{dest.name}</b></p>
-        <div style={{display:'flex',gap:8,marginBottom:16}}>
-          <input style={iS} placeholder="Your city (e.g. Chennai, India)" value={originInput} onChange={e=>setOriginInput(e.target.value)} onKeyDown={e=>e.key==='Enter'&&loadPrices()} autoFocus/>
-          <button className="btn-primary" style={{padding:'12px 20px',fontSize:13,flexShrink:0}} onClick={loadPrices}>{priceLoading?'…':'Check'}</button>
+        <p style={{fontSize:14,color:'var(--mist)',marginBottom:20,lineHeight:1.6}}>
+          Estimated costs to <b style={{color:'var(--amber)'}}>{dest.name}</b> from your location
+        </p>
+
+        {/* Country searchable dropdown */}
+        <label style={{fontSize:10,letterSpacing:2,textTransform:'uppercase',color:'var(--mist)',display:'block',marginBottom:6,fontFamily:"'DM Sans',sans-serif"}}>Your Country</label>
+        <div style={{position:'relative',marginBottom:12}}>
+          <input
+            style={{...iS, paddingLeft:14}}
+            placeholder="Search country..."
+            value={countrySearch}
+            onChange={e=>{
+              setCountrySearch(e.target.value)
+              setShowCountryDrop(true)
+              if(!e.target.value) setSelectedCountry(null)
+            }}
+            onFocus={()=>setShowCountryDrop(true)}
+            autoFocus
+          />
+          {showCountryDrop&&countrySearch.length>0&&(
+            <div style={{position:'absolute',top:'100%',left:0,right:0,background:'#1A1630',border:'1px solid rgba(240,235,224,.12)',borderRadius:10,zIndex:50,maxHeight:200,overflowY:'auto',marginTop:4}}>
+              {COUNTRIES.filter(c=>c.name.toLowerCase().includes(countrySearch.toLowerCase().replace(/[^a-z]/g,''))||c.currency.toLowerCase().includes(countrySearch.toLowerCase())).slice(0,8).map(c=>(
+                <button key={c.name} style={{display:'flex',gap:10,alignItems:'center',padding:'10px 14px',background:'transparent',border:'none',width:'100%',cursor:'pointer',textAlign:'left'}}
+                  onClick={()=>{setSelectedCountry(c);setCountrySearch(c.flag+' '+c.name);setShowCountryDrop(false)}}>
+                  <span style={{fontSize:20}}>{c.flag}</span>
+                  <div>
+                    <p style={{fontSize:14,color:'var(--sand)',fontWeight:600}}>{c.name}</p>
+                    <p style={{fontSize:11,color:'var(--mist)'}}>{c.currency} · {c.symbol}</p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
+
+        {/* City within country */}
+        <label style={{fontSize:10,letterSpacing:2,textTransform:'uppercase',color:'var(--mist)',display:'block',marginBottom:6,fontFamily:"'DM Sans',sans-serif"}}>Your City (optional)</label>
+        <input style={{...iS,marginBottom:12}} placeholder={selectedCountry?'e.g. Mumbai, Chennai, Delhi...':'Select country first'} value={originInput} onChange={e=>setOriginInput(e.target.value)} disabled={!selectedCountry}/>
+
+        {/* Trip duration */}
+        <label style={{fontSize:10,letterSpacing:2,textTransform:'uppercase',color:'var(--mist)',display:'block',marginBottom:8,fontFamily:"'DM Sans',sans-serif"}}>Trip Duration</label>
+        <div style={{display:'flex',gap:8,marginBottom:20,flexWrap:'wrap'}}>
+          {[3,5,7,10,14,21].map(d=>(
+            <button key={d} onClick={()=>setTripDays(d)} style={{padding:'8px 16px',borderRadius:100,border:`2px solid ${tripDays===d?'var(--amber)':'rgba(240,235,224,.1)'}`,background:tripDays===d?'rgba(232,146,74,.15)':'var(--ink2)',color:tripDays===d?'var(--amber)':'var(--mist)',fontSize:13,fontWeight:tripDays===d?700:400,cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>
+              {d}N
+            </button>
+          ))}
+        </div>
+
+        <button className="btn-primary" style={{width:'100%',padding:'14px 0',marginBottom:20,fontSize:14}} onClick={loadPrices} disabled={!selectedCountry||priceLoading}>
+          {priceLoading?'Calculating…':'Calculate Trip Cost →'}
+        </button>
+
         {priceLoading&&<Loader/>}
-        {priceData&&<PriceDisplay data={priceData}/>}
+        {priceData&&<PriceDisplay data={priceData} days={tripDays} country={selectedCountry}/>}
       </Modal>
     )}
 
@@ -186,7 +306,7 @@ function Modal({title,onClose,children}){
 
 function Loader(){return <div style={{display:'flex',justifyContent:'center',padding:40}}><div className="spinner"/></div>}
 
-function PriceDisplay({data}){
+function PriceDisplay({data, days=7, country=null}){
   if(data.error) return(
     <div style={{textAlign:'center',padding:'24px 0'}}>
       <p style={{fontSize:32,marginBottom:12}}>⚠️</p>
@@ -199,10 +319,72 @@ function PriceDisplay({data}){
       <p style={{color:'var(--mist)',fontSize:13}}>Could not load prices. Please try again.</p>
     </div>
   )
+
+  // Parse USD ranges into numbers for calculation
+  function parseRange(str) {
+    if(!str) return [0,0]
+    const nums = (str.match(/[\d,]+/g)||[]).map(n=>parseInt(n.replace(/,/g,'')))
+    return nums.length>=2?[nums[0],nums[1]]:nums.length===1?[nums[0],nums[0]]:[0,0]
+  }
+
+  function convertAmt(usd) {
+    if(!country||country.currency==='USD') return usd
+    return Math.round(usd * country.rate)
+  }
+
+  function fmtMoney(usd) {
+    const amt = convertAmt(usd)
+    const sym = country?.symbol || 'USD '
+    if(amt>=100000) return sym+(amt/100000).toFixed(1)+'L'
+    if(amt>=1000) return sym+(amt/1000).toFixed(0)+'K'
+    return sym+amt.toLocaleString()
+  }
+
+  // Calculate total trip cost
+  const [flLow, flHigh] = parseRange(data.flights?.economy)
+  const [htBudLow, htBudHigh] = parseRange(data.hotel?.budget)
+  const [htMidLow, htMidHigh] = parseRange(data.hotel?.mid)
+  const [htLuxLow, htLuxHigh] = parseRange(data.hotel?.luxury)
+  const [dayBudLow, dayBudHigh] = parseRange(data.dailyCost?.budget)
+  const [dayMidLow, dayMidHigh] = parseRange(data.dailyCost?.mid)
+
+  const totalBudLow  = flLow  + (htBudLow*days)  + (dayBudLow*days)
+  const totalBudHigh = flHigh + (htBudHigh*days) + (dayBudHigh*days)
+  const totalMidLow  = flLow  + (htMidLow*days)  + (dayMidLow*days)
+  const totalMidHigh = flHigh + (htMidHigh*days) + (dayMidHigh*days)
+  const totalLuxLow  = flLow  + (htLuxLow*days)  + (dayMidHigh*1.5*days)
+  const totalLuxHigh = flHigh + (htLuxHigh*days) + (dayMidHigh*2*days)
+
+  const hasTotals = totalMidLow > 0
+
   return(
     <div style={{display:'flex',flexDirection:'column',gap:14}}>
 
-      {/* Airport info card */}
+      {/* ── TOTAL TRIP COST — hero card ── */}
+      {hasTotals&&(
+        <div style={{background:'linear-gradient(135deg,rgba(232,146,74,.18),rgba(232,146,74,.06))',border:'2px solid rgba(232,146,74,.4)',borderRadius:16,padding:'18px 20px'}}>
+          <p style={{fontSize:9,letterSpacing:3,textTransform:'uppercase',color:'var(--amber)',marginBottom:10,fontFamily:"'DM Sans',sans-serif"}}>🧳 TOTAL TRIP COST — {days} NIGHTS</p>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8}}>
+            {[
+              {label:'Budget',low:totalBudLow,high:totalBudHigh,color:'#58E87A'},
+              {label:'Mid-Range',low:totalMidLow,high:totalMidHigh,color:'var(--amber)'},
+              {label:'Comfort',low:totalLuxLow,high:totalLuxHigh,color:'#5BC8FF'},
+            ].map(({label,low,high,color})=>(
+              <div key={label} style={{textAlign:'center',background:'rgba(0,0,0,.2)',borderRadius:10,padding:'10px 6px'}}>
+                <p style={{fontSize:9,color:'var(--mist)',marginBottom:5,letterSpacing:1}}>{label}</p>
+                <p style={{fontSize:13,fontWeight:700,color,lineHeight:1.2}}>{fmtMoney(low)}</p>
+                <p style={{fontSize:10,color:'rgba(255,255,255,.3)'}}>to {fmtMoney(high)}</p>
+              </div>
+            ))}
+          </div>
+          <p style={{fontSize:10,color:'rgba(232,146,74,.5)',marginTop:10,textAlign:'center'}}>
+            Flights + {days} nights hotel + daily costs
+            {country&&country.currency!=='USD'&&<span> · shown in {country.currency}</span>}
+          </p>
+        </div>
+      )}
+
+      {/* Airport info */}
       {data.nearestAirport&&(
         <div style={{background:'linear-gradient(135deg,rgba(91,200,255,.1),rgba(91,200,255,.04))',border:'1px solid rgba(91,200,255,.25)',borderRadius:14,padding:'14px 16px'}}>
           <p style={{fontSize:9,letterSpacing:3,textTransform:'uppercase',color:'#5BC8FF',marginBottom:8,fontFamily:"'DM Sans',sans-serif"}}>✈ NEAREST AIRPORT</p>
@@ -220,35 +402,33 @@ function PriceDisplay({data}){
       {/* Flights */}
       {data.flights&&(
         <div style={{background:'var(--ink2)',borderRadius:14,padding:'14px 16px'}}>
-          <p style={{fontSize:9,letterSpacing:3,textTransform:'uppercase',color:'var(--amber)',marginBottom:12,fontFamily:"'DM Sans',sans-serif"}}>✈️ FLIGHTS</p>
-          <div style={{display:'flex',flexDirection:'column',gap:8}}>
-            <PriceRow label="Economy" value={data.flights.economy} highlight/>
-            {data.flights.business&&<PriceRow label="Business" value={data.flights.business}/>}
-          </div>
+          <p style={{fontSize:9,letterSpacing:3,textTransform:'uppercase',color:'var(--amber)',marginBottom:12,fontFamily:"'DM Sans',sans-serif"}}>✈️ FLIGHTS (ONE WAY)</p>
+          <PriceRow label="Economy" value={data.flights.economy} highlight country={country}/>
+          {data.flights.business&&<PriceRow label="Business" value={data.flights.business} country={country}/>}
           {data.flights.notes&&<p style={{fontSize:12,color:'var(--mist)',marginTop:10,fontStyle:'italic',lineHeight:1.5,paddingTop:10,borderTop:'1px solid rgba(255,255,255,.05)'}}>💡 {data.flights.notes}</p>}
         </div>
       )}
 
-      {/* Hotel + Daily combined */}
+      {/* Hotel + Daily */}
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
         {data.hotel&&(
           <div style={{background:'var(--ink2)',borderRadius:14,padding:'14px 14px'}}>
             <p style={{fontSize:9,letterSpacing:3,textTransform:'uppercase',color:'var(--amber)',marginBottom:10,fontFamily:"'DM Sans',sans-serif"}}>🏨 HOTEL/NIGHT</p>
-            <PriceRow label="Budget" value={data.hotel.budget} small/>
-            <PriceRow label="Mid" value={data.hotel.mid} small/>
-            <PriceRow label="Luxury" value={data.hotel.luxury} small/>
+            <PriceRow label="Budget" value={data.hotel.budget} small country={country}/>
+            <PriceRow label="Mid" value={data.hotel.mid} small country={country}/>
+            <PriceRow label="Luxury" value={data.hotel.luxury} small country={country}/>
           </div>
         )}
         {data.dailyCost&&(
           <div style={{background:'var(--ink2)',borderRadius:14,padding:'14px 14px'}}>
             <p style={{fontSize:9,letterSpacing:3,textTransform:'uppercase',color:'var(--amber)',marginBottom:10,fontFamily:"'DM Sans',sans-serif"}}>💰 DAILY TOTAL</p>
-            <PriceRow label="Budget" value={data.dailyCost.budget} small/>
-            <PriceRow label="Mid" value={data.dailyCost.mid} small/>
+            <PriceRow label="Budget" value={data.dailyCost.budget} small country={country}/>
+            <PriceRow label="Mid" value={data.dailyCost.mid} small country={country}/>
           </div>
         )}
       </div>
 
-      {/* Info row */}
+      {/* Info chips */}
       <div style={{display:'flex',flexDirection:'column',gap:6}}>
         {data.bestTime&&<InfoChip emoji="🗓" text={"Best time: "+data.bestTime}/>}
         {data.currency&&<InfoChip emoji="💱" text={data.currency}/>}
@@ -256,8 +436,41 @@ function PriceDisplay({data}){
       </div>
 
       <p style={{fontSize:10,color:'rgba(154,136,120,.4)',textAlign:'center',paddingTop:4}}>
-        AI estimates only — verify on Google Flights before booking
+        AI estimates — verify on Google Flights before booking
       </p>
+    </div>
+  )
+}
+
+function PriceRow({label,value,highlight,small,country}){
+  if(!value) return null
+  // Convert USD values to origin currency
+  function convertDisplay(str) {
+    if(!country||country.currency==='USD'||!str) return str
+    const nums = (str.match(/[\d,]+/g)||[]).map(n=>parseInt(n.replace(/,/g,'')))
+    if(!nums.length) return str
+    const converted = nums.map(n=>{
+      const amt = Math.round(n * country.rate)
+      if(amt>=100000) return country.symbol+(amt/100000).toFixed(1)+'L'
+      if(amt>=1000) return country.symbol+(amt/1000).toFixed(0)+'K'
+      return country.symbol+amt.toLocaleString()
+    })
+    return converted.join(' – ')
+  }
+  const display = convertDisplay(value)
+  return(
+    <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline',marginBottom:small?5:0,gap:8}}>
+      <span style={{fontSize:small?11:13,color:'var(--mist)',flexShrink:0}}>{label}</span>
+      <span style={{fontSize:small?12:15,fontWeight:700,color:highlight?'var(--amber)':'var(--sand)',fontFamily:"'DM Sans',sans-serif",textAlign:'right'}}>{display}</span>
+    </div>
+  )
+}
+
+function InfoChip({emoji,text}){
+  return(
+    <div style={{display:'flex',gap:8,alignItems:'flex-start',background:'rgba(255,255,255,.03)',borderRadius:10,padding:'8px 12px'}}>
+      <span style={{fontSize:14,flexShrink:0}}>{emoji}</span>
+      <p style={{fontSize:12,color:'rgba(240,232,214,.65)',lineHeight:1.5}}>{text}</p>
     </div>
   )
 }
