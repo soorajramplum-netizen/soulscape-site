@@ -475,7 +475,7 @@ function InfoChip({emoji,text}){
   )
 }
 
-function PriceRow({label,value,highlight,small}){
+){
   if(!value) return null
   return(
     <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline',marginBottom:small?5:0}}>
@@ -485,7 +485,7 @@ function PriceRow({label,value,highlight,small}){
   )
 }
 
-function InfoChip({emoji,text}){
+){
   return(
     <div style={{display:'flex',gap:8,alignItems:'flex-start',background:'rgba(255,255,255,.03)',borderRadius:10,padding:'8px 12px'}}>
       <span style={{fontSize:14,flexShrink:0}}>{emoji}</span>
