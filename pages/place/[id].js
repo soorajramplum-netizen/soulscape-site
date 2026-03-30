@@ -75,7 +75,7 @@ export default function Place() {
     localStorage.setItem('ss_city', city)
     setPriceLoading(true); setPriceData(null)
     try {
-      const res = await fetch('/api/prices',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({destName:dest.name,destCountry:dest.country,originCity:city})})
+      const res = await fetch('/api/prices',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({destName:dest.name,destCountry:dest.country,destLat:dest.lat,destLng:dest.lng,originCity:city})})
       setPriceData(await res.json())
     } catch(e) { setPriceData({error:'Connection error. Please try again.'}) }
     setPriceLoading(false)
@@ -187,35 +187,100 @@ function Modal({title,onClose,children}){
 function Loader(){return <div style={{display:'flex',justifyContent:'center',padding:40}}><div className="spinner"/></div>}
 
 function PriceDisplay({data}){
-  if(data.error) return <p style={{color:'#FF6B6B',fontSize:14}}>{data.error}</p>
-  if(data.parseError||!data.flights) return <div style={{marginTop:8}}><p style={{fontSize:9,letterSpacing:3,textTransform:'uppercase',color:'var(--amber)',marginBottom:12}}>Price Information</p><p style={{fontSize:14,color:'rgba(240,232,214,.8)',lineHeight:1.8,whiteSpace:'pre-wrap'}}>{data.raw||JSON.stringify(data,null,2)}</p></div>
+  if(data.error) return(
+    <div style={{textAlign:'center',padding:'24px 0'}}>
+      <p style={{fontSize:32,marginBottom:12}}>⚠️</p>
+      <p style={{color:'#FF6B6B',fontSize:14,lineHeight:1.6}}>{data.error}</p>
+    </div>
+  )
+  if(data.parseError||!data.flights) return(
+    <div style={{textAlign:'center',padding:'24px 0'}}>
+      <p style={{fontSize:32,marginBottom:12}}>⚠️</p>
+      <p style={{color:'var(--mist)',fontSize:13}}>Could not load prices. Please try again.</p>
+    </div>
+  )
   return(
-    <div style={{display:'flex',flexDirection:'column',gap:12}}>
-      {data.flights&&<PCard emoji="✈️" title="Flights" rows={[['Economy',data.flights.economy]]} note={data.flights.notes}/>}
-      {data.hotel&&<PCard emoji="🏨" title="Hotel per Night" rows={[['Budget',data.hotel.budget],['Mid-range',data.hotel.mid],['Luxury',data.hotel.luxury]]}/>}
-      {data.dailyCost&&<PCard emoji="💰" title="Daily Budget" rows={[['Budget traveller',data.dailyCost.budget],['Mid traveller',data.dailyCost.mid]]}/>}
-      {data.bestTime&&<p style={{fontSize:13,color:'rgba(240,232,214,.7)',display:'flex',gap:8}}><span>🗓</span><span>Best time: {data.bestTime}</span></p>}
-      {data.currency&&<p style={{fontSize:13,color:'rgba(240,232,214,.7)',display:'flex',gap:8}}><span>💱</span><span>{data.currency}</span></p>}
-      {data.tips?.map((t,i)=><p key={i} style={{fontSize:13,color:'rgba(240,232,214,.7)',display:'flex',gap:8}}><span>💡</span><span>{t}</span></p>)}
-      <p style={{fontSize:10,color:'rgba(154,136,120,.45)',marginTop:4}}>AI estimates — verify on Google Flights before booking.</p>
+    <div style={{display:'flex',flexDirection:'column',gap:14}}>
+
+      {/* Airport info card */}
+      {data.nearestAirport&&(
+        <div style={{background:'linear-gradient(135deg,rgba(91,200,255,.1),rgba(91,200,255,.04))',border:'1px solid rgba(91,200,255,.25)',borderRadius:14,padding:'14px 16px'}}>
+          <p style={{fontSize:9,letterSpacing:3,textTransform:'uppercase',color:'#5BC8FF',marginBottom:8,fontFamily:"'DM Sans',sans-serif"}}>✈ NEAREST AIRPORT</p>
+          <p style={{fontSize:16,fontWeight:700,color:'var(--sand)',fontFamily:"'Cormorant Garamond',serif",marginBottom:3}}>{data.nearestAirport}</p>
+          {data.nearestCity&&<p style={{fontSize:12,color:'var(--mist)',marginBottom:4}}>in {data.nearestCity}</p>}
+          {data.distanceFromAirport&&(
+            <div style={{display:'flex',alignItems:'center',gap:6,marginTop:6}}>
+              <span style={{fontSize:16}}>🚗</span>
+              <p style={{fontSize:13,color:'rgba(240,232,214,.8)'}}>{data.distanceFromAirport} from airport to destination</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Flights */}
+      {data.flights&&(
+        <div style={{background:'var(--ink2)',borderRadius:14,padding:'14px 16px'}}>
+          <p style={{fontSize:9,letterSpacing:3,textTransform:'uppercase',color:'var(--amber)',marginBottom:12,fontFamily:"'DM Sans',sans-serif"}}>✈️ FLIGHTS</p>
+          <div style={{display:'flex',flexDirection:'column',gap:8}}>
+            <PriceRow label="Economy" value={data.flights.economy} highlight/>
+            {data.flights.business&&<PriceRow label="Business" value={data.flights.business}/>}
+          </div>
+          {data.flights.notes&&<p style={{fontSize:12,color:'var(--mist)',marginTop:10,fontStyle:'italic',lineHeight:1.5,paddingTop:10,borderTop:'1px solid rgba(255,255,255,.05)'}}>💡 {data.flights.notes}</p>}
+        </div>
+      )}
+
+      {/* Hotel + Daily combined */}
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+        {data.hotel&&(
+          <div style={{background:'var(--ink2)',borderRadius:14,padding:'14px 14px'}}>
+            <p style={{fontSize:9,letterSpacing:3,textTransform:'uppercase',color:'var(--amber)',marginBottom:10,fontFamily:"'DM Sans',sans-serif"}}>🏨 HOTEL/NIGHT</p>
+            <PriceRow label="Budget" value={data.hotel.budget} small/>
+            <PriceRow label="Mid" value={data.hotel.mid} small/>
+            <PriceRow label="Luxury" value={data.hotel.luxury} small/>
+          </div>
+        )}
+        {data.dailyCost&&(
+          <div style={{background:'var(--ink2)',borderRadius:14,padding:'14px 14px'}}>
+            <p style={{fontSize:9,letterSpacing:3,textTransform:'uppercase',color:'var(--amber)',marginBottom:10,fontFamily:"'DM Sans',sans-serif"}}>💰 DAILY TOTAL</p>
+            <PriceRow label="Budget" value={data.dailyCost.budget} small/>
+            <PriceRow label="Mid" value={data.dailyCost.mid} small/>
+          </div>
+        )}
+      </div>
+
+      {/* Info row */}
+      <div style={{display:'flex',flexDirection:'column',gap:6}}>
+        {data.bestTime&&<InfoChip emoji="🗓" text={"Best time: "+data.bestTime}/>}
+        {data.currency&&<InfoChip emoji="💱" text={data.currency}/>}
+        {data.tips?.map((t,i)=><InfoChip key={i} emoji="💡" text={t}/>)}
+      </div>
+
+      <p style={{fontSize:10,color:'rgba(154,136,120,.4)',textAlign:'center',paddingTop:4}}>
+        AI estimates only — verify on Google Flights before booking
+      </p>
     </div>
   )
 }
 
-function PCard({emoji,title,rows,note}){
+function PriceRow({label,value,highlight,small}){
+  if(!value) return null
   return(
-    <div style={{background:'var(--ink2)',borderRadius:12,padding:'14px 16px'}}>
-      <p style={{fontSize:9,letterSpacing:3,textTransform:'uppercase',color:'var(--amber)',marginBottom:10,fontFamily:"'DM Sans',sans-serif"}}>{emoji} {title}</p>
-      {rows.map(([l,v])=>(
-        <div key={l} style={{display:'flex',justifyContent:'space-between',marginBottom:6,alignItems:'baseline'}}>
-          <span style={{fontSize:13,color:'var(--mist)'}}>{l}</span>
-          <span style={{fontSize:14,color:'var(--sand)',fontWeight:600}}>{v||'—'}</span>
-        </div>
-      ))}
-      {note&&<p style={{fontSize:12,color:'var(--mist)',marginTop:8,fontStyle:'italic',lineHeight:1.5}}>{note}</p>}
+    <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline',marginBottom:small?5:0}}>
+      <span style={{fontSize:small?11:13,color:'var(--mist)'}}>{label}</span>
+      <span style={{fontSize:small?12:15,fontWeight:700,color:highlight?'var(--amber)':'var(--sand)',fontFamily:"'DM Sans',sans-serif"}}>{value}</span>
     </div>
   )
 }
+
+function InfoChip({emoji,text}){
+  return(
+    <div style={{display:'flex',gap:8,alignItems:'flex-start',background:'rgba(255,255,255,.03)',borderRadius:10,padding:'8px 12px'}}>
+      <span style={{fontSize:14,flexShrink:0}}>{emoji}</span>
+      <p style={{fontSize:12,color:'rgba(240,232,214,.65)',lineHeight:1.5}}>{text}</p>
+    </div>
+  )
+}
+
 
 function CuisineDisplay({data}){
   if(data.error) return <p style={{color:'#FF6B6B'}}>{data.error}</p>
