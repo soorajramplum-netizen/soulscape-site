@@ -1,4 +1,4 @@
-// pages/place/[id].js — Fixed: no overlay, full-screen modals
+// UPDATED FIXED pages/place/[id].js — Fixed: no overlay, full-screen modals
 import Head from 'next/head'
 import { useRouter } from 'next/router'
 import { useEffect, useState, useRef } from 'react'
