@@ -181,32 +181,33 @@ export default function Place() {
     <div style={{display:'flex',flexDirection:'column',height:'100vh',overflow:'hidden',background:'var(--ink)'}}>
 
       {/* VIDEO 75% */}
-      <div style={{flex:'0 0 75%',position:'relative',overflow:'hidden',background:cat.glow?`radial-gradient(ellipse at center,${cat.glow} 0%,${cat.glow} 60%,#060810 100%)`:'#060810'}}>
+      <div style={{flex:'0 0 82%',position:'relative',overflow:'hidden',background:cat.glow?`radial-gradient(ellipse at center,${cat.glow} 0%,${cat.glow} 60%,#060810 100%)`:'#060810'}}>
         {videoUrl&&<video src={videoUrl} autoPlay muted loop playsInline style={{position:'absolute',inset:0,width:'100%',height:'100%',objectFit:'cover'}}/>}
         <div style={{position:'absolute',top:'max(14px,calc(var(--st)+6px))',left:14,right:14,zIndex:20,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-          <button className="btn-back" style={{fontSize:12,padding:'6px 12px'}} onClick={()=>router.push('/')}>🏠 Home</button>
+          <div style={{width:70}}/>
           <span style={{fontFamily:"'Cormorant Garamond',serif",fontWeight:600,fontSize:15,color:'rgba(255,255,255,.85)',textShadow:'0 2px 10px rgba(0,0,0,.6)'}}>SoulScape</span>
           <span style={{fontSize:9,letterSpacing:2,textTransform:'uppercase',color:'rgba(255,255,255,.6)',background:'rgba(0,0,0,.3)',backdropFilter:'blur(6px)',padding:'4px 11px',borderRadius:100,border:'1px solid rgba(255,255,255,.1)'}}>{cat.emoji} {cat.name}</span>
         </div>
       </div>
 
       {/* CONTENT 25% */}
-      <div style={{flex:1,background:'var(--ink)',borderTop:'1px solid rgba(232,146,74,.12)',display:'flex',flexDirection:'column',justifyContent:'space-between',padding:'10px 16px max(12px,calc(var(--sb)+8px))'}}>
+      <div style={{flex:1,background:'var(--ink)',borderTop:'1px solid rgba(232,146,74,.12)',display:'flex',flexDirection:'column',justifyContent:'center',padding:'12px 16px max(14px,calc(var(--sb)+10px))',gap:10}}>
         <div>
-          <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:2}}>
-            <span style={{fontSize:8,letterSpacing:2,textTransform:'uppercase',color:'var(--mist)'}}>{dest.country.toUpperCase()}</span>
+          <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:3}}>
+            <span style={{fontSize:9,letterSpacing:2,textTransform:'uppercase',color:'var(--mist)'}}>{dest.country.toUpperCase()}</span>
             <span style={{fontSize:9,color:'rgba(154,136,120,.35)'}}>·</span>
-            <span style={{fontSize:8,letterSpacing:2,textTransform:'uppercase',color:'var(--mist)'}}>{cat.name.toUpperCase()}</span>
+            <span style={{fontSize:9,letterSpacing:2,textTransform:'uppercase',color:'var(--mist)'}}>{cat.name.toUpperCase()}</span>
           </div>
-          <h1 style={{fontFamily:"'Cormorant Garamond',serif",fontSize:'clamp(20px,5.5vw,34px)',fontWeight:700,color:'var(--sand)',lineHeight:1,letterSpacing:-.5,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',marginBottom:3}}>{dest.name}</h1>
-          <p style={{fontFamily:"'Cormorant Garamond',serif",fontSize:13,fontStyle:'italic',color:'rgba(240,232,214,.45)',lineHeight:1.4,overflow:'hidden',textOverflow:'ellipsis',display:'-webkit-box',WebkitLineClamp:2,WebkitBoxOrient:'vertical'}}>{dest.desc}</p>
+          <h1 style={{fontFamily:"'Cormorant Garamond',serif",fontSize:'clamp(22px,6vw,38px)',fontWeight:700,color:'var(--sand)',lineHeight:1,letterSpacing:-.5,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',marginBottom:4}}>{dest.name}</h1>
+          <p style={{fontFamily:"'Cormorant Garamond',serif",fontSize:14,fontStyle:'italic',color:'rgba(240,232,214,.5)',lineHeight:1.45,overflow:'hidden',textOverflow:'ellipsis',display:'-webkit-box',WebkitLineClamp:2,WebkitBoxOrient:'vertical'}}>{dest.desc}</p>
         </div>
-        <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
-          <button style={bS.amber} onClick={()=>openModal('prices')}>✈ Prices</button>
-          <button style={bS.amber} onClick={()=>openModal('cuisine')}>🍽 Cuisine</button>
-          <button style={bS.amber} onClick={()=>openModal('speak')}>💬 Speak</button>
-          <button style={bS.violet} onClick={()=>router.push('/scapedex')}>📖 ScapeDex</button>
-          <button style={bS.violet} onClick={()=>router.push('/passport')}>🛂 Passport</button>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:7}}>
+          <button style={bS.amberLg} onClick={()=>openModal('prices')}>✈ Prices</button>
+          <button style={bS.amberLg} onClick={()=>openModal('cuisine')}>🍽 Cuisine</button>
+          <button style={bS.amberLg} onClick={()=>openModal('speak')}>💬 Speak</button>
+          <button style={bS.violetLg} onClick={()=>router.push('/scapedex')}>📖 ScapeDex</button>
+          <button style={bS.violetLg} onClick={()=>router.push('/passport')}>🛂 Passport</button>
+          <button style={bS.violetLg} onClick={()=>router.push('/')}>🏠 Home</button>
         </div>
       </div>
     </div>
@@ -235,7 +236,10 @@ export default function Place() {
           />
           {showCountryDrop&&countrySearch.length>0&&(
             <div style={{position:'absolute',top:'100%',left:0,right:0,background:'#1A1630',border:'1px solid rgba(240,235,224,.12)',borderRadius:10,zIndex:50,maxHeight:200,overflowY:'auto',marginTop:4}}>
-              {COUNTRIES.filter(c=>c.name.toLowerCase().includes(countrySearch.toLowerCase().replace(/[^a-z]/g,''))||c.currency.toLowerCase().includes(countrySearch.toLowerCase())).slice(0,8).map(c=>(
+              {COUNTRIES.filter(c=>{
+                const q=(countrySearch||'').toLowerCase()
+                return c.name.toLowerCase().includes(q)||c.currency.toLowerCase().includes(q)
+              }).slice(0,8).map(c=>(
                 <button key={c.name} style={{display:'flex',gap:10,alignItems:'center',padding:'10px 14px',background:'transparent',border:'none',width:'100%',cursor:'pointer',textAlign:'left'}}
                   onClick={()=>{setSelectedCountry(c);setCountrySearch(c.flag+' '+c.name);setShowCountryDrop(false)}}>
                   <span style={{fontSize:20}}>{c.flag}</span>
@@ -323,7 +327,7 @@ function PriceDisplay({data, days=7, country=null}){
   // Parse USD ranges into numbers for calculation
   function parseRange(str) {
     if(!str) return [0,0]
-    const nums = (str.match(/[\d,]+/g)||[]).map(n=>parseInt(n.replace(/,/g,'')))
+     const nums = (String(str).match(/[0-9,]+/g)||[]).map(n=>parseInt(n.replace(/,/g,''),10)).filter(n=>!isNaN(n)&&n>0)
     return nums.length>=2?[nums[0],nums[1]]:nums.length===1?[nums[0],nums[0]]:[0,0]
   }
 
@@ -333,8 +337,10 @@ function PriceDisplay({data, days=7, country=null}){
   }
 
   function fmtMoney(usd) {
+    if(!usd||usd===0) return '—'
     const amt = convertAmt(usd)
     const sym = country?.symbol || 'USD '
+    if(amt>=10000000) return sym+(amt/10000000).toFixed(1)+'Cr'
     if(amt>=100000) return sym+(amt/100000).toFixed(1)+'L'
     if(amt>=1000) return sym+(amt/1000).toFixed(0)+'K'
     return sym+amt.toLocaleString()
@@ -447,7 +453,8 @@ function PriceRow({label,value,highlight,small,country}){
   // Convert USD values to origin currency
   function convertDisplay(str) {
     if(!country||country.currency==='USD'||!str) return str
-    const nums = (str.match(/[\d,]+/g)||[]).map(n=>parseInt(n.replace(/,/g,'')))
+    const s = String(str)
+    const nums = (s.match(/[\d,]+/g)||[]).map(n=>parseInt(n.replace(/,/g,'')))
     if(!nums.length) return str
     const converted = nums.map(n=>{
       const amt = Math.round(n * country.rate)
@@ -537,6 +544,6 @@ function PhraseDisplay({data}){
 const sL={fontSize:9,letterSpacing:3,textTransform:'uppercase',color:'var(--amber)',fontFamily:"'DM Sans',sans-serif"}
 const iS={flex:1,background:'var(--ink2)',border:'1px solid rgba(240,235,224,.14)',borderRadius:8,padding:'12px 14px',fontFamily:"'DM Sans',sans-serif",fontSize:14,color:'var(--sand)',outline:'none'}
 const bS={
-  amber:{background:'rgba(232,146,74,.12)',border:'1px solid rgba(232,146,74,.3)',color:'var(--amber2)',padding:'7px 12px',borderRadius:6,fontSize:11,fontWeight:500,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",whiteSpace:'nowrap'},
-  violet:{background:'rgba(123,108,176,.12)',border:'1px solid rgba(123,108,176,.3)',color:'#C0B4E8',padding:'7px 12px',borderRadius:6,fontSize:11,fontWeight:500,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",whiteSpace:'nowrap'},
+  amber:{background:'rgba(232,146,74,.14)',border:'1px solid rgba(232,146,74,.35)',color:'var(--amber2)',padding:'11px 8px',borderRadius:8,fontSize:12,fontWeight:600,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",whiteSpace:'nowrap',width:'100%',textAlign:'center'},
+  violet:{background:'rgba(123,108,176,.14)',border:'1px solid rgba(123,108,176,.35)',color:'#C0B4E8',padding:'11px 8px',borderRadius:8,fontSize:12,fontWeight:600,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",whiteSpace:'nowrap',width:'100%',textAlign:'center'},
 }
