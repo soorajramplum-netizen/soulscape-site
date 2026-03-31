@@ -1,20 +1,19 @@
-// pages/place/[id].js — Fixed: no overlay, full-screen modals
+// pages/place/[id].js
 import Head from 'next/head'
 import { useRouter } from 'next/router'
-import { useEffect, useState, useRef } from 'react'
-import { DESTINATIONS, CATS, getDestinationById, slugify } from '../../data/destinations'
+import { useEffect, useState } from 'react'
+import { CATS, getDestinationById } from '../../data/destinations'
 
 const PEXELS_KEY = process.env.NEXT_PUBLIC_PEXELS_KEY || ''
 
-// Top countries with currency info for the dropdown
 const COUNTRIES = [
   {name:'India',flag:'🇮🇳',currency:'INR',symbol:'₹',rate:83.5},
   {name:'United States',flag:'🇺🇸',currency:'USD',symbol:'$',rate:1},
   {name:'United Kingdom',flag:'🇬🇧',currency:'GBP',symbol:'£',rate:0.79},
-  {name:'United Arab Emirates',flag:'🇦🇪',currency:'AED',symbol:'AED',rate:3.67},
-  {name:'Singapore',flag:'🇸🇬',currency:'SGD',symbol:'SGD',rate:1.34},
-  {name:'Australia',flag:'🇦🇺',currency:'AUD',symbol:'AUD',rate:1.55},
-  {name:'Canada',flag:'🇨🇦',currency:'CAD',symbol:'CAD',rate:1.36},
+  {name:'United Arab Emirates',flag:'🇦🇪',currency:'AED',symbol:'AED ',rate:3.67},
+  {name:'Singapore',flag:'🇸🇬',currency:'SGD',symbol:'SGD ',rate:1.34},
+  {name:'Australia',flag:'🇦🇺',currency:'AUD',symbol:'A$',rate:1.55},
+  {name:'Canada',flag:'🇨🇦',currency:'CAD',symbol:'C$',rate:1.36},
   {name:'Germany',flag:'🇩🇪',currency:'EUR',symbol:'€',rate:0.92},
   {name:'France',flag:'🇫🇷',currency:'EUR',symbol:'€',rate:0.92},
   {name:'Japan',flag:'🇯🇵',currency:'JPY',symbol:'¥',rate:149},
@@ -36,7 +35,7 @@ const COUNTRIES = [
   {name:'Sri Lanka',flag:'🇱🇰',currency:'LKR',symbol:'Rs',rate:305},
   {name:'Nepal',flag:'🇳🇵',currency:'NPR',symbol:'Rs',rate:133},
   {name:'New Zealand',flag:'🇳🇿',currency:'NZD',symbol:'NZ$',rate:1.63},
-  {name:'Switzerland',flag:'🇨🇭',currency:'CHF',symbol:'CHF',rate:0.89},
+  {name:'Switzerland',flag:'🇨🇭',currency:'CHF',symbol:'CHF ',rate:0.89},
   {name:'Sweden',flag:'🇸🇪',currency:'SEK',symbol:'kr',rate:10.4},
   {name:'Norway',flag:'🇳🇴',currency:'NOK',symbol:'kr',rate:10.7},
   {name:'Denmark',flag:'🇩🇰',currency:'DKK',symbol:'kr',rate:6.88},
@@ -48,15 +47,8 @@ const COUNTRIES = [
   {name:'Poland',flag:'🇵🇱',currency:'PLN',symbol:'zł',rate:3.97},
   {name:'Russia',flag:'🇷🇺',currency:'RUB',symbol:'₽',rate:91.2},
   {name:'Kenya',flag:'🇰🇪',currency:'KES',symbol:'KSh',rate:130},
-  {name:'Ghana',flag:'🇬🇭',currency:'GHS',symbol:'GH₵',rate:12.4},
-  {name:'Ethiopia',flag:'🇪🇹',currency:'ETB',symbol:'Br',rate:56.5},
   {name:'Morocco',flag:'🇲🇦',currency:'MAD',symbol:'DH',rate:10.1},
-  {name:'Jordan',flag:'🇯🇴',currency:'JOD',symbol:'JD',rate:0.71},
-  {name:'Israel',flag:'🇮🇱',currency:'ILS',symbol:'₪',rate:3.72},
   {name:'Argentina',flag:'🇦🇷',currency:'ARS',symbol:'$',rate:870},
-  {name:'Colombia',flag:'🇨🇴',currency:'COP',symbol:'$',rate:3950},
-  {name:'Chile',flag:'🇨🇱',currency:'CLP',symbol:'$',rate:945},
-  {name:'Peru',flag:'🇵🇪',currency:'PEN',symbol:'S/',rate:3.75},
   {name:'Vietnam',flag:'🇻🇳',currency:'VND',symbol:'₫',rate:24500},
 ]
 
@@ -86,16 +78,10 @@ export default function Place() {
     stampVisit(d)
     const savedCity = localStorage.getItem('ss_city') || ''
     setOriginInput(savedCity)
-    // Try to match saved city to a country
     const savedCountry = localStorage.getItem('ss_country')
     if (savedCountry) {
       const c = COUNTRIES.find(c => c.name === savedCountry)
       if (c) { setSelectedCountry(c); setCountrySearch(c.flag + ' ' + c.name) }
-    } else if (savedCity) {
-      // Auto-detect from city string
-      const cityLower = savedCity.toLowerCase()
-      const found = COUNTRIES.find(c => cityLower.includes(c.name.toLowerCase()))
-      if (found) { setSelectedCountry(found); setCountrySearch(found.flag + ' ' + found.name) }
     }
     fetchVideo(d)
   }, [id])
@@ -117,17 +103,20 @@ export default function Place() {
 
   async function fetchVideo(d) {
     if (!PEXELS_KEY) return
-    const h = d.name.split('').reduce((a,c)=>a+c.charCodeAt(0),0)
-    for (const q of [d.q1, d.q2, CATS[d.cat].name+' aerial drone cinematic landscape']) {
+    const h = d.name.split('').reduce((a,c) => a + c.charCodeAt(0), 0)
+    for (const q of [d.q1, d.q2, CATS[d.cat].name + ' aerial drone cinematic landscape']) {
       try {
-        const r = await fetch(`https://api.pexels.com/videos/search?query=${encodeURIComponent(q)}&per_page=10&page=${(h%4)+1}&min_duration=5`,{headers:{Authorization:PEXELS_KEY}})
+        const r = await fetch(
+          `https://api.pexels.com/videos/search?query=${encodeURIComponent(q)}&per_page=10&page=${(h%4)+1}&min_duration=5`,
+          { headers: { Authorization: PEXELS_KEY } }
+        )
         if (!r.ok) continue
         const data = await r.json()
-        const real = (data.videos||[]).filter(v=>v.video_files?.some(f=>f.link?.includes('.mp4')&&f.width>=640))
+        const real = (data.videos||[]).filter(v => v.video_files?.some(f => f.link?.includes('.mp4') && f.width >= 640))
         if (!real.length) continue
-        const v = real[(h%10)%real.length]
-        const files = v.video_files.filter(f=>f.link?.includes('.mp4')&&f.width>=640).sort((a,b)=>b.width-a.width)
-        const f = files.find(f=>f.width>=1280&&f.width<=1920)||files[0]
+        const v = real[(h%10) % real.length]
+        const files = v.video_files.filter(f => f.link?.includes('.mp4') && f.width >= 640).sort((a,b) => b.width - a.width)
+        const f = files.find(f => f.width >= 1280 && f.width <= 1920) || files[0]
         if (f) { setVideoUrl(f.link); break }
       } catch(e) { continue }
     }
@@ -135,21 +124,37 @@ export default function Place() {
 
   function openModal(type) {
     setActiveModal(type)
-    if (type==='cuisine'&&!cuisine) loadCuisine()
-    if (type==='speak'&&!phrasebook) loadPhrasebook()
+    if (type === 'cuisine' && !cuisine) loadCuisine()
+    if (type === 'speak' && !phrasebook) loadPhrasebook()
   }
 
   async function loadPrices() {
     if (!selectedCountry) { alert('Please select your country first'); return }
-    const city = countrySearch.replace(selectedCountry.flag, '').trim() || selectedCountry.name
-    const originCity = city + (city.includes(selectedCountry.name) ? '' : ', ' + selectedCountry.name)
+    const cityText = countrySearch.replace(selectedCountry.flag, '').trim()
+    const cityPart = originInput.trim() || cityText || selectedCountry.name
+    const originCity = cityPart.includes(selectedCountry.name) ? cityPart : cityPart + ', ' + selectedCountry.name
     localStorage.setItem('ss_city', originCity)
     localStorage.setItem('ss_country', selectedCountry.name)
-    setPriceLoading(true); setPriceData(null)
+    setPriceLoading(true)
+    setPriceData(null)
     try {
-      const res = await fetch('/api/prices',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({destName:dest.name,destCountry:dest.country,destLat:dest.lat,destLng:dest.lng,originCity,tripDays,originCurrency:selectedCountry.currency,originSymbol:selectedCountry.symbol,originRate:selectedCountry.rate})})
+      const res = await fetch('/api/prices', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          destName: dest.name,
+          destCountry: dest.country,
+          destLat: dest.lat,
+          destLng: dest.lng,
+          originCity,
+          tripDays,
+          originCurrency: selectedCountry.currency,
+        }),
+      })
       setPriceData(await res.json())
-    } catch(e) { setPriceData({error:'Connection error. Please try again.'}) }
+    } catch(e) {
+      setPriceData({ error: 'Connection error. Please try again.' })
+    }
     setPriceLoading(false)
   }
 
@@ -157,9 +162,13 @@ export default function Place() {
     if (cuisine) return
     setCuisineLoading(true)
     try {
-      const res = await fetch('/api/cuisine',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({destName:dest.name,destCountry:dest.country})})
+      const res = await fetch('/api/cuisine', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ destName: dest.name, destCountry: dest.country }),
+      })
       setCuisine(await res.json())
-    } catch(e) { setCuisine({error:'Could not load cuisine data.'}) }
+    } catch(e) { setCuisine({ error: 'Could not load cuisine data.' }) }
     setCuisineLoading(false)
   }
 
@@ -167,383 +176,465 @@ export default function Place() {
     if (phrasebook) return
     setPhraseLoading(true)
     try {
-      const res = await fetch('/api/phrasebook',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({destName:dest.name,destCountry:dest.country})})
+      const res = await fetch('/api/phrasebook', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ destName: dest.name, destCountry: dest.country }),
+      })
       setPhrasebook(await res.json())
-    } catch(e) { setPhrasebook({error:'Could not load phrase data.'}) }
+    } catch(e) { setPhrasebook({ error: 'Could not load phrase data.' }) }
     setPhraseLoading(false)
   }
 
-  if (!dest) return <div style={{background:'var(--ink)',minHeight:'100vh'}}/>
+  if (!dest) return <div style={{ background: '#0A0812', minHeight: '100vh' }} />
   const cat = CATS[dest.cat]
 
-  return (<>
-    <Head><title>{dest.name} — SoulScape</title></Head>
-    <div style={{display:'flex',flexDirection:'column',height:'100vh',overflow:'hidden',background:'var(--ink)'}}>
+  return (
+    <>
+      <Head><title>{dest.name} — SoulScape</title></Head>
 
-      {/* VIDEO 75% */}
-      <div style={{flex:'0 0 82%',position:'relative',overflow:'hidden',background:cat.glow?`radial-gradient(ellipse at center,${cat.glow} 0%,${cat.glow} 60%,#060810 100%)`:'#060810'}}>
-        {videoUrl&&<video src={videoUrl} autoPlay muted loop playsInline style={{position:'absolute',inset:0,width:'100%',height:'100%',objectFit:'cover'}}/>}
-        <div style={{position:'absolute',top:'max(14px,calc(var(--st)+6px))',left:14,right:14,zIndex:20,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-          <div style={{width:70}}/>
-          <span style={{fontFamily:"'Cormorant Garamond',serif",fontWeight:600,fontSize:15,color:'rgba(255,255,255,.85)',textShadow:'0 2px 10px rgba(0,0,0,.6)'}}>SoulScape</span>
-          <span style={{fontSize:9,letterSpacing:2,textTransform:'uppercase',color:'rgba(255,255,255,.6)',background:'rgba(0,0,0,.3)',backdropFilter:'blur(6px)',padding:'4px 11px',borderRadius:100,border:'1px solid rgba(255,255,255,.1)'}}>{cat.emoji} {cat.name}</span>
+      <div style={{ position: 'fixed', inset: 0, background: '#060810', overflow: 'hidden' }}>
+
+        {/* Full screen video */}
+        {videoUrl && (
+          <video src={videoUrl} autoPlay muted loop playsInline
+            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+        )}
+
+        {/* Top gradient */}
+        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 160,
+          background: 'linear-gradient(to bottom, rgba(0,0,0,.7) 0%, transparent 100%)', zIndex: 2 }} />
+
+        {/* Bottom gradient — strong enough to read text */}
+        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '50%',
+          background: 'linear-gradient(to top, rgba(6,4,12,.98) 0%, rgba(6,4,12,.88) 35%, rgba(6,4,12,.5) 60%, transparent 100%)', zIndex: 2 }} />
+
+        {/* Top bar */}
+        <div style={{ position: 'absolute', top: 'max(14px,calc(var(--st)+8px))', left: 14, right: 14, zIndex: 10,
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <button onClick={() => router.push('/')} style={{
+            background: 'rgba(0,0,0,.5)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)',
+            border: '1px solid rgba(255,255,255,.18)', color: 'rgba(255,255,255,.9)',
+            padding: '8px 16px', borderRadius: 100, fontSize: 13, cursor: 'pointer',
+            fontFamily: "'DM Sans',sans-serif",
+          }}>🏠 Home</button>
+          <span style={{ fontFamily: "'Cormorant Garamond',serif", fontWeight: 600, fontSize: 16,
+            color: 'rgba(255,255,255,.85)', textShadow: '0 2px 12px rgba(0,0,0,.8)' }}>SoulScape</span>
+          <span style={{ background: 'rgba(0,0,0,.45)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)',
+            border: '1px solid rgba(255,255,255,.14)', color: 'rgba(255,255,255,.7)',
+            padding: '5px 12px', borderRadius: 100, fontSize: 10, letterSpacing: 2, textTransform: 'uppercase' }}>
+            {cat.emoji} {cat.name}
+          </span>
         </div>
-      </div>
 
-      {/* CONTENT 25% */}
-      <div style={{flex:1,background:'var(--ink)',borderTop:'1px solid rgba(232,146,74,.12)',display:'flex',flexDirection:'column',justifyContent:'center',padding:'12px 16px max(14px,calc(var(--sb)+10px))',gap:10}}>
-        <div>
-          <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:3}}>
-            <span style={{fontSize:9,letterSpacing:2,textTransform:'uppercase',color:'var(--mist)'}}>{dest.country.toUpperCase()}</span>
-            <span style={{fontSize:9,color:'rgba(154,136,120,.35)'}}>·</span>
-            <span style={{fontSize:9,letterSpacing:2,textTransform:'uppercase',color:'var(--mist)'}}>{cat.name.toUpperCase()}</span>
+        {/* Bottom info + buttons */}
+        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 10,
+          padding: '0 20px max(20px,calc(var(--sb)+14px))' }}>
+
+          {/* Breadcrumb */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+            <span style={{ fontSize: 9, letterSpacing: 3, textTransform: 'uppercase', color: 'rgba(255,255,255,.5)',
+              fontFamily: "'DM Sans',sans-serif" }}>{dest.country}</span>
+            <span style={{ color: 'rgba(255,255,255,.3)', fontSize: 9 }}>·</span>
+            <span style={{ fontSize: 9, letterSpacing: 3, textTransform: 'uppercase', color: 'rgba(255,255,255,.5)',
+              fontFamily: "'DM Sans',sans-serif" }}>{cat.name}</span>
           </div>
-          <h1 style={{fontFamily:"'Cormorant Garamond',serif",fontSize:'clamp(22px,6vw,38px)',fontWeight:700,color:'var(--sand)',lineHeight:1,letterSpacing:-.5,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',marginBottom:4}}>{dest.name}</h1>
-          <p style={{fontFamily:"'Cormorant Garamond',serif",fontSize:14,fontStyle:'italic',color:'rgba(240,232,214,.5)',lineHeight:1.45,overflow:'hidden',textOverflow:'ellipsis',display:'-webkit-box',WebkitLineClamp:2,WebkitBoxOrient:'vertical'}}>{dest.desc}</p>
-        </div>
-        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:7}}>
-          <button style={bS.amberLg} onClick={()=>openModal('prices')}>✈ Prices</button>
-          <button style={bS.amberLg} onClick={()=>openModal('cuisine')}>🍽 Cuisine</button>
-          <button style={bS.amberLg} onClick={()=>openModal('speak')}>💬 Speak</button>
-          <button style={bS.violetLg} onClick={()=>router.push('/scapedex')}>📖 ScapeDex</button>
-          <button style={bS.violetLg} onClick={()=>router.push('/passport')}>🛂 Passport</button>
-          <button style={bS.violetLg} onClick={()=>router.push('/')}>🏠 Home</button>
+
+          {/* Name */}
+          <h1 style={{ fontFamily: "'Cormorant Garamond',serif",
+            fontSize: 'clamp(30px,8vw,54px)', fontWeight: 700, color: '#fff',
+            lineHeight: 1, letterSpacing: -1, marginBottom: 8,
+            textShadow: '0 2px 20px rgba(0,0,0,.6)' }}>{dest.name}</h1>
+
+          {/* Desc */}
+          <p style={{ fontFamily: "'Cormorant Garamond',serif",
+            fontSize: 'clamp(14px,3.5vw,17px)', fontStyle: 'italic',
+            color: 'rgba(255,255,255,.6)', lineHeight: 1.5, marginBottom: 20,
+            maxWidth: 480, textShadow: '0 1px 8px rgba(0,0,0,.7)' }}>{dest.desc}</p>
+
+          {/* Primary actions */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 8 }}>
+            {[
+              { label: '✈ Prices',   type: 'prices',   color: '#E8924A', bg: 'rgba(232,146,74,.2)'  },
+              { label: '🍽 Cuisine', type: 'cuisine',  color: '#FF85C0', bg: 'rgba(255,133,192,.18)' },
+              { label: '💬 Speak',   type: 'speak',    color: '#58E87A', bg: 'rgba(88,232,122,.18)'  },
+            ].map(b => (
+              <button key={b.type} onClick={() => openModal(b.type)} style={{
+                background: b.bg, backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
+                border: `1.5px solid ${b.color}`, color: b.color,
+                padding: '12px 6px', borderRadius: 12, fontSize: 13, fontWeight: 600,
+                cursor: 'pointer', fontFamily: "'DM Sans',sans-serif",
+              }}>{b.label}</button>
+            ))}
+          </div>
+
+          {/* Secondary actions */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+            {[
+              { label: '📖 ScapeDex', fn: () => router.push('/scapedex') },
+              { label: '🛂 Passport',  fn: () => router.push('/passport') },
+              { label: '✈ Planner',   fn: () => router.push('/planner') },
+            ].map(b => (
+              <button key={b.label} onClick={b.fn} style={{
+                background: 'rgba(255,255,255,.1)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
+                border: '1px solid rgba(255,255,255,.18)', color: 'rgba(255,255,255,.75)',
+                padding: '10px 6px', borderRadius: 12, fontSize: 12, fontWeight: 500,
+                cursor: 'pointer', fontFamily: "'DM Sans',sans-serif",
+              }}>{b.label}</button>
+            ))}
+          </div>
         </div>
       </div>
-    </div>
 
-    {/* PRICES MODAL */}
-    {activeModal==='prices'&&(
-      <Modal title="✈ Price Estimate" onClose={()=>setActiveModal(null)}>
-        <p style={{fontSize:14,color:'var(--mist)',marginBottom:20,lineHeight:1.6}}>
-          Estimated costs to <b style={{color:'var(--amber)'}}>{dest.name}</b> from your location
-        </p>
+      {/* PRICES MODAL */}
+      {activeModal === 'prices' && (
+        <Modal title="✈ Price Estimate" onClose={() => setActiveModal(null)}>
+          <p style={{ fontSize: 14, color: 'var(--mist)', marginBottom: 20, lineHeight: 1.6 }}>
+            Estimated costs to <b style={{ color: 'var(--amber)' }}>{dest.name}</b> from your location
+          </p>
+          <label style={lbl}>Your Country</label>
+          <div style={{ position: 'relative', marginBottom: 12 }}>
+            <input style={inp} placeholder="Search country..." value={countrySearch} autoFocus
+              onChange={e => { setCountrySearch(e.target.value); setShowCountryDrop(true); if (!e.target.value) setSelectedCountry(null) }}
+              onFocus={() => setShowCountryDrop(true)} />
+            {showCountryDrop && countrySearch.length > 0 && (
+              <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: '#1A1630', border: '1px solid rgba(240,235,224,.12)', borderRadius: 10, zIndex: 50, maxHeight: 200, overflowY: 'auto', marginTop: 4 }}>
+                {COUNTRIES.filter(c =>
+                  c.name.toLowerCase().includes(countrySearch.toLowerCase().replace(/[^a-z]/gi, '')) ||
+                  c.currency.toLowerCase().includes(countrySearch.toLowerCase())
+                ).slice(0, 8).map(c => (
+                  <button key={c.name} onClick={() => { setSelectedCountry(c); setCountrySearch(c.flag + ' ' + c.name); setShowCountryDrop(false) }}
+                    style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '10px 14px', background: 'transparent', border: 'none', width: '100%', cursor: 'pointer', textAlign: 'left' }}>
+                    <span style={{ fontSize: 20 }}>{c.flag}</span>
+                    <div>
+                      <p style={{ fontSize: 14, color: 'var(--sand)', fontWeight: 600, margin: 0 }}>{c.name}</p>
+                      <p style={{ fontSize: 11, color: 'var(--mist)', margin: 0 }}>{c.currency} · {c.symbol}</p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          <label style={lbl}>Your City (optional)</label>
+          <input style={{ ...inp, marginBottom: 16 }}
+            placeholder={selectedCountry ? 'e.g. Mumbai, Chennai...' : 'Select country first'}
+            value={originInput} onChange={e => setOriginInput(e.target.value)} disabled={!selectedCountry} />
+          <label style={lbl}>Trip Duration</label>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
+            {[3,5,7,10,14,21].map(d => (
+              <button key={d} onClick={() => setTripDays(d)} style={{
+                padding: '8px 16px', borderRadius: 100, cursor: 'pointer', fontFamily: "'DM Sans',sans-serif",
+                border: `2px solid ${tripDays===d ? 'var(--amber)' : 'rgba(240,235,224,.1)'}`,
+                background: tripDays===d ? 'rgba(232,146,74,.15)' : 'var(--ink2)',
+                color: tripDays===d ? 'var(--amber)' : 'var(--mist)',
+                fontSize: 13, fontWeight: tripDays===d ? 700 : 400,
+              }}>{d}N</button>
+            ))}
+          </div>
+          <button onClick={loadPrices} disabled={!selectedCountry || priceLoading} style={{
+            width: '100%', padding: '15px 0', marginBottom: 20, fontSize: 15, fontWeight: 700,
+            background: selectedCountry ? 'var(--amber)' : 'rgba(232,146,74,.3)',
+            color: 'var(--ink)', border: 'none', borderRadius: 12,
+            cursor: selectedCountry ? 'pointer' : 'default', fontFamily: "'DM Sans',sans-serif",
+            boxShadow: selectedCountry ? '0 4px 20px rgba(232,146,74,.3)' : 'none',
+          }}>
+            {priceLoading ? 'Calculating…' : 'Calculate Trip Cost →'}
+          </button>
+          {priceLoading && <Loader />}
+          {priceData && <PriceDisplay data={priceData} days={tripDays} country={selectedCountry} />}
+        </Modal>
+      )}
 
-        {/* Country searchable dropdown */}
-        <label style={{fontSize:10,letterSpacing:2,textTransform:'uppercase',color:'var(--mist)',display:'block',marginBottom:6,fontFamily:"'DM Sans',sans-serif"}}>Your Country</label>
-        <div style={{position:'relative',marginBottom:12}}>
-          <input
-            style={{...iS, paddingLeft:14}}
-            placeholder="Search country..."
-            value={countrySearch}
-            onChange={e=>{
-              setCountrySearch(e.target.value)
-              setShowCountryDrop(true)
-              if(!e.target.value) setSelectedCountry(null)
-            }}
-            onFocus={()=>setShowCountryDrop(true)}
-            autoFocus
-          />
-          {showCountryDrop&&countrySearch.length>0&&(
-            <div style={{position:'absolute',top:'100%',left:0,right:0,background:'#1A1630',border:'1px solid rgba(240,235,224,.12)',borderRadius:10,zIndex:50,maxHeight:200,overflowY:'auto',marginTop:4}}>
-              {COUNTRIES.filter(c=>{
-                const q=(countrySearch||'').toLowerCase()
-                return c.name.toLowerCase().includes(q)||c.currency.toLowerCase().includes(q)
-              }).slice(0,8).map(c=>(
-                <button key={c.name} style={{display:'flex',gap:10,alignItems:'center',padding:'10px 14px',background:'transparent',border:'none',width:'100%',cursor:'pointer',textAlign:'left'}}
-                  onClick={()=>{setSelectedCountry(c);setCountrySearch(c.flag+' '+c.name);setShowCountryDrop(false)}}>
-                  <span style={{fontSize:20}}>{c.flag}</span>
-                  <div>
-                    <p style={{fontSize:14,color:'var(--sand)',fontWeight:600}}>{c.name}</p>
-                    <p style={{fontSize:11,color:'var(--mist)'}}>{c.currency} · {c.symbol}</p>
-                  </div>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
+      {activeModal === 'cuisine' && (
+        <Modal title={`🍽 ${dest.name} Cuisine`} onClose={() => setActiveModal(null)}>
+          {cuisineLoading && <Loader />}
+          {cuisine && <CuisineDisplay data={cuisine} />}
+        </Modal>
+      )}
 
-        {/* City within country */}
-        <label style={{fontSize:10,letterSpacing:2,textTransform:'uppercase',color:'var(--mist)',display:'block',marginBottom:6,fontFamily:"'DM Sans',sans-serif"}}>Your City (optional)</label>
-        <input style={{...iS,marginBottom:12}} placeholder={selectedCountry?'e.g. Mumbai, Chennai, Delhi...':'Select country first'} value={originInput} onChange={e=>setOriginInput(e.target.value)} disabled={!selectedCountry}/>
-
-        {/* Trip duration */}
-        <label style={{fontSize:10,letterSpacing:2,textTransform:'uppercase',color:'var(--mist)',display:'block',marginBottom:8,fontFamily:"'DM Sans',sans-serif"}}>Trip Duration</label>
-        <div style={{display:'flex',gap:8,marginBottom:20,flexWrap:'wrap'}}>
-          {[3,5,7,10,14,21].map(d=>(
-            <button key={d} onClick={()=>setTripDays(d)} style={{padding:'8px 16px',borderRadius:100,border:`2px solid ${tripDays===d?'var(--amber)':'rgba(240,235,224,.1)'}`,background:tripDays===d?'rgba(232,146,74,.15)':'var(--ink2)',color:tripDays===d?'var(--amber)':'var(--mist)',fontSize:13,fontWeight:tripDays===d?700:400,cursor:'pointer',fontFamily:"'DM Sans',sans-serif"}}>
-              {d}N
-            </button>
-          ))}
-        </div>
-
-        <button className="btn-primary" style={{width:'100%',padding:'14px 0',marginBottom:20,fontSize:14}} onClick={loadPrices} disabled={!selectedCountry||priceLoading}>
-          {priceLoading?'Calculating…':'Calculate Trip Cost →'}
-        </button>
-
-        {priceLoading&&<Loader/>}
-        {priceData&&<PriceDisplay data={priceData} days={tripDays} country={selectedCountry}/>}
-      </Modal>
-    )}
-
-    {/* CUISINE MODAL */}
-    {activeModal==='cuisine'&&(
-      <Modal title={`🍽 ${dest.name} Cuisine`} onClose={()=>setActiveModal(null)}>
-        {cuisineLoading&&<Loader/>}
-        {cuisine&&<CuisineDisplay data={cuisine}/>}
-      </Modal>
-    )}
-
-    {/* SPEAK MODAL */}
-    {activeModal==='speak'&&(
-      <Modal title="💬 Speak Like a Local" onClose={()=>setActiveModal(null)}>
-        {phraseLoading&&<Loader/>}
-        {phrasebook&&<PhraseDisplay data={phrasebook}/>}
-      </Modal>
-    )}
-  </>)
+      {activeModal === 'speak' && (
+        <Modal title="💬 Speak Like a Local" onClose={() => setActiveModal(null)}>
+          {phraseLoading && <Loader />}
+          {phrasebook && <PhraseDisplay data={phrasebook} />}
+        </Modal>
+      )}
+    </>
+  )
 }
 
-function Modal({title,onClose,children}){
-  return(
-    <div style={{position:'fixed',inset:0,zIndex:100,background:'#0A0812',display:'flex',flexDirection:'column'}}>
-      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'max(52px,calc(var(--st)+28px)) 22px 16px',borderBottom:'1px solid rgba(232,146,74,.15)',flexShrink:0}}>
-        <h2 style={{fontFamily:"'Cormorant Garamond',serif",fontSize:24,fontWeight:700,color:'var(--sand)'}}>{title}</h2>
-        <button onClick={onClose} style={{background:'rgba(255,255,255,.08)',border:'1px solid rgba(255,255,255,.14)',color:'var(--mist)',width:36,height:36,borderRadius:'50%',fontSize:16,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>✕</button>
+function Modal({ title, onClose, children }) {
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 100, background: '#0A0812', display: 'flex', flexDirection: 'column' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 'max(52px,calc(var(--st)+28px)) 22px 16px', borderBottom: '1px solid rgba(232,146,74,.15)', flexShrink: 0 }}>
+        <h2 style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 24, fontWeight: 700, color: 'var(--sand)', margin: 0 }}>{title}</h2>
+        <button onClick={onClose} style={{ background: 'rgba(255,255,255,.08)', border: '1px solid rgba(255,255,255,.14)', color: 'var(--mist)', width: 36, height: 36, borderRadius: '50%', fontSize: 16, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>✕</button>
       </div>
-      <div style={{flex:1,overflowY:'auto',padding:'20px 22px max(24px,calc(var(--sb)+16px))',WebkitOverflowScrolling:'touch',maxWidth:600,width:'100%',margin:'0 auto'}}>
+      <div style={{ flex: 1, overflowY: 'auto', padding: '20px 22px max(24px,calc(var(--sb)+16px))', WebkitOverflowScrolling: 'touch', maxWidth: 600, width: '100%', margin: '0 auto' }}>
         {children}
       </div>
     </div>
   )
 }
 
-function Loader(){return <div style={{display:'flex',justifyContent:'center',padding:40}}><div className="spinner"/></div>}
+function Loader() {
+  return <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}><div className="spinner" /></div>
+}
 
-function PriceDisplay({data, days=7, country=null}){
-  if(data.error) return(
-    <div style={{textAlign:'center',padding:'24px 0'}}>
-      <p style={{fontSize:32,marginBottom:12}}>⚠️</p>
-      <p style={{color:'#FF6B6B',fontSize:14,lineHeight:1.6}}>{data.error}</p>
+function ErrBox({ msg }) {
+  return (
+    <div style={{ textAlign: 'center', padding: '32px 0' }}>
+      <p style={{ fontSize: 36, marginBottom: 12 }}>⚠️</p>
+      <p style={{ color: '#FF6B6B', fontSize: 14, lineHeight: 1.6 }}>{String(msg || 'Error')}</p>
     </div>
   )
-  if(data.parseError||!data.flights) return(
-    <div style={{textAlign:'center',padding:'24px 0'}}>
-      <p style={{fontSize:32,marginBottom:12}}>⚠️</p>
-      <p style={{color:'var(--mist)',fontSize:13}}>Could not load prices. Please try again.</p>
-    </div>
-  )
+}
 
-  // Parse USD ranges into numbers for calculation
-  function parseRange(str) {
-    if(!str) return [0,0]
-     const nums = (String(str).match(/[0-9,]+/g)||[]).map(n=>parseInt(n.replace(/,/g,''),10)).filter(n=>!isNaN(n)&&n>0)
-    return nums.length>=2?[nums[0],nums[1]]:nums.length===1?[nums[0],nums[0]]:[0,0]
+function PriceDisplay({ data, days, country }) {
+  if (!data) return null
+  if (data.error) return <ErrBox msg={data.error} />
+  if (data.parseError || !data.flights) return <ErrBox msg="Could not load prices. Please try again." />
+
+  function parseNums(str) {
+    const s = String(str || '')
+    const found = s.match(/[0-9]+/g)
+    if (!found) return [0, 0]
+    const nums = found.map(n => parseInt(n, 10)).filter(n => !isNaN(n) && n > 10)
+    return nums.length >= 2 ? [nums[0], nums[1]] : nums.length === 1 ? [nums[0], nums[0]] : [0, 0]
   }
 
-  function convertAmt(usd) {
-    if(!country||country.currency==='USD') return usd
+  function cvt(usd) {
+    if (!usd || !country || country.currency === 'USD') return usd
     return Math.round(usd * country.rate)
   }
 
-  function fmtMoney(usd) {
-    if(!usd||usd===0) return '—'
-    const amt = convertAmt(usd)
-    const sym = country?.symbol || 'USD '
-    if(amt>=10000000) return sym+(amt/10000000).toFixed(1)+'Cr'
-    if(amt>=100000) return sym+(amt/100000).toFixed(1)+'L'
-    if(amt>=1000) return sym+(amt/1000).toFixed(0)+'K'
-    return sym+amt.toLocaleString()
+  function fmt(usd) {
+    if (!usd || usd === 0) return '—'
+    const amt = cvt(usd)
+    const s = (country && country.symbol) ? String(country.symbol) : '$'
+    if (amt >= 10000000) return s + (amt / 10000000).toFixed(1) + 'Cr'
+    if (amt >= 100000)   return s + (amt / 100000).toFixed(1) + 'L'
+    if (amt >= 1000)     return s + (amt / 1000).toFixed(0) + 'K'
+    return s + amt.toLocaleString()
   }
 
-  // Calculate total trip cost
-  const [flLow, flHigh] = parseRange(data.flights?.economy)
-  const [htBudLow, htBudHigh] = parseRange(data.hotel?.budget)
-  const [htMidLow, htMidHigh] = parseRange(data.hotel?.mid)
-  const [htLuxLow, htLuxHigh] = parseRange(data.hotel?.luxury)
-  const [dayBudLow, dayBudHigh] = parseRange(data.dailyCost?.budget)
-  const [dayMidLow, dayMidHigh] = parseRange(data.dailyCost?.mid)
+  function fmtRange(str) {
+    if (!str) return '—'
+    if (!country || country.currency === 'USD') return String(str)
+    const [lo, hi] = parseNums(str)
+    if (!lo) return String(str)
+    return lo === hi ? fmt(lo) : fmt(lo) + ' – ' + fmt(hi)
+  }
 
-  const totalBudLow  = flLow  + (htBudLow*days)  + (dayBudLow*days)
-  const totalBudHigh = flHigh + (htBudHigh*days) + (dayBudHigh*days)
-  const totalMidLow  = flLow  + (htMidLow*days)  + (dayMidLow*days)
-  const totalMidHigh = flHigh + (htMidHigh*days) + (dayMidHigh*days)
-  const totalLuxLow  = flLow  + (htLuxLow*days)  + (dayMidHigh*1.5*days)
-  const totalLuxHigh = flHigh + (htLuxHigh*days) + (dayMidHigh*2*days)
+  const d = days || 7
+  const [flLo, flHi]   = parseNums(data.flights?.economy)
+  const [htBlo, htBhi] = parseNums(data.hotel?.budget)
+  const [htMlo, htMhi] = parseNums(data.hotel?.mid)
+  const [htLlo, htLhi] = parseNums(data.hotel?.luxury)
+  const [dyBlo, dyBhi] = parseNums(data.dailyCost?.budget)
+  const [dyMlo, dyMhi] = parseNums(data.dailyCost?.mid)
 
-  const hasTotals = totalMidLow > 0
+  const totBudLo = flLo + (htBlo + dyBlo) * d
+  const totBudHi = flHi + (htBhi + dyBhi) * d
+  const totMidLo = flLo + (htMlo + dyMlo) * d
+  const totMidHi = flHi + (htMhi + dyMhi) * d
+  const totLuxLo = flLo + (htLlo + dyMhi * 1.5) * d
+  const totLuxHi = flHi + (htLhi + dyMhi * 2) * d
+  const hasTotals = totMidLo > 100
+  const cur = country && country.currency !== 'USD' ? country.currency : null
 
-  return(
-    <div style={{display:'flex',flexDirection:'column',gap:14}}>
-
-      {/* ── TOTAL TRIP COST — hero card ── */}
-      {hasTotals&&(
-        <div style={{background:'linear-gradient(135deg,rgba(232,146,74,.18),rgba(232,146,74,.06))',border:'2px solid rgba(232,146,74,.4)',borderRadius:16,padding:'18px 20px'}}>
-          <p style={{fontSize:9,letterSpacing:3,textTransform:'uppercase',color:'var(--amber)',marginBottom:10,fontFamily:"'DM Sans',sans-serif"}}>🧳 TOTAL TRIP COST — {days} NIGHTS</p>
-          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8}}>
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      {hasTotals && (
+        <div style={{ background: 'linear-gradient(135deg,rgba(232,146,74,.2),rgba(232,146,74,.06))', border: '2px solid rgba(232,146,74,.4)', borderRadius: 16, padding: '18px 18px' }}>
+          <p style={eb}>🧳 TOTAL TRIP — {d} NIGHTS{cur ? ` · ${cur}` : ''}</p>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
             {[
-              {label:'Budget',low:totalBudLow,high:totalBudHigh,color:'#58E87A'},
-              {label:'Mid-Range',low:totalMidLow,high:totalMidHigh,color:'var(--amber)'},
-              {label:'Comfort',low:totalLuxLow,high:totalLuxHigh,color:'#5BC8FF'},
-            ].map(({label,low,high,color})=>(
-              <div key={label} style={{textAlign:'center',background:'rgba(0,0,0,.2)',borderRadius:10,padding:'10px 6px'}}>
-                <p style={{fontSize:9,color:'var(--mist)',marginBottom:5,letterSpacing:1}}>{label}</p>
-                <p style={{fontSize:13,fontWeight:700,color,lineHeight:1.2}}>{fmtMoney(low)}</p>
-                <p style={{fontSize:10,color:'rgba(255,255,255,.3)'}}>to {fmtMoney(high)}</p>
+              { label: 'Budget',  lo: totBudLo, hi: totBudHi, c: '#58E87A' },
+              { label: 'Mid',     lo: totMidLo, hi: totMidHi, c: '#E8924A' },
+              { label: 'Comfort', lo: totLuxLo, hi: totLuxHi, c: '#5BC8FF' },
+            ].map(({ label, lo, hi, c }) => (
+              <div key={label} style={{ textAlign: 'center', background: 'rgba(0,0,0,.25)', borderRadius: 10, padding: '10px 4px' }}>
+                <p style={{ fontSize: 9, color: 'var(--mist)', marginBottom: 5, letterSpacing: 1, fontFamily: "'DM Sans',sans-serif" }}>{label}</p>
+                <p style={{ fontSize: 14, fontWeight: 700, color: c, lineHeight: 1.1, margin: 0 }}>{fmt(lo)}</p>
+                <p style={{ fontSize: 10, color: 'rgba(255,255,255,.3)', margin: 0 }}>– {fmt(hi)}</p>
               </div>
             ))}
           </div>
-          <p style={{fontSize:10,color:'rgba(232,146,74,.5)',marginTop:10,textAlign:'center'}}>
-            Flights + {days} nights hotel + daily costs
-            {country&&country.currency!=='USD'&&<span> · shown in {country.currency}</span>}
+          <p style={{ fontSize: 10, color: 'rgba(232,146,74,.5)', marginTop: 10, textAlign: 'center', margin: '10px 0 0' }}>
+            Flights + hotel + daily · {d} nights
           </p>
         </div>
       )}
 
-      {/* Airport info */}
-      {data.nearestAirport&&(
-        <div style={{background:'linear-gradient(135deg,rgba(91,200,255,.1),rgba(91,200,255,.04))',border:'1px solid rgba(91,200,255,.25)',borderRadius:14,padding:'14px 16px'}}>
-          <p style={{fontSize:9,letterSpacing:3,textTransform:'uppercase',color:'#5BC8FF',marginBottom:8,fontFamily:"'DM Sans',sans-serif"}}>✈ NEAREST AIRPORT</p>
-          <p style={{fontSize:16,fontWeight:700,color:'var(--sand)',fontFamily:"'Cormorant Garamond',serif",marginBottom:3}}>{data.nearestAirport}</p>
-          {data.nearestCity&&<p style={{fontSize:12,color:'var(--mist)',marginBottom:4}}>in {data.nearestCity}</p>}
-          {data.distanceFromAirport&&(
-            <div style={{display:'flex',alignItems:'center',gap:6,marginTop:6}}>
-              <span style={{fontSize:16}}>🚗</span>
-              <p style={{fontSize:13,color:'rgba(240,232,214,.8)'}}>{data.distanceFromAirport} from airport to destination</p>
-            </div>
-          )}
+      {data.nearestAirport && (
+        <div style={{ background: 'rgba(91,200,255,.08)', border: '1px solid rgba(91,200,255,.25)', borderRadius: 14, padding: '14px 16px' }}>
+          <p style={{ ...eb, color: '#5BC8FF' }}>✈ NEAREST AIRPORT</p>
+          <p style={{ fontSize: 16, fontWeight: 700, color: 'var(--sand)', fontFamily: "'Cormorant Garamond',serif", margin: '4px 0 2px' }}>{data.nearestAirport}</p>
+          {data.nearestCity && <p style={{ fontSize: 12, color: 'var(--mist)', margin: '0 0 4px' }}>in {data.nearestCity}</p>}
+          {data.distanceFromAirport && <p style={{ fontSize: 13, color: 'rgba(240,232,214,.8)', margin: 0 }}>🚗 {data.distanceFromAirport}</p>}
         </div>
       )}
 
-      {/* Flights */}
-      {data.flights&&(
-        <div style={{background:'var(--ink2)',borderRadius:14,padding:'14px 16px'}}>
-          <p style={{fontSize:9,letterSpacing:3,textTransform:'uppercase',color:'var(--amber)',marginBottom:12,fontFamily:"'DM Sans',sans-serif"}}>✈️ FLIGHTS (ONE WAY)</p>
-          <PriceRow label="Economy" value={data.flights.economy} highlight country={country}/>
-          {data.flights.business&&<PriceRow label="Business" value={data.flights.business} country={country}/>}
-          {data.flights.notes&&<p style={{fontSize:12,color:'var(--mist)',marginTop:10,fontStyle:'italic',lineHeight:1.5,paddingTop:10,borderTop:'1px solid rgba(255,255,255,.05)'}}>💡 {data.flights.notes}</p>}
+      {data.flights && (
+        <div style={{ background: 'var(--ink2)', borderRadius: 14, padding: '14px 16px' }}>
+          <p style={eb}>✈️ FLIGHTS (ONE WAY)</p>
+          <PRow label="Economy" val={fmtRange(data.flights.economy)} hi />
+          {data.flights.business && <PRow label="Business" val={fmtRange(data.flights.business)} />}
+          {data.flights.notes && <p style={{ fontSize: 12, color: 'var(--mist)', marginTop: 8, fontStyle: 'italic', lineHeight: 1.5, borderTop: '1px solid rgba(255,255,255,.05)', paddingTop: 8, marginBottom: 0 }}>💡 {data.flights.notes}</p>}
         </div>
       )}
 
-      {/* Hotel + Daily */}
-      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
-        {data.hotel&&(
-          <div style={{background:'var(--ink2)',borderRadius:14,padding:'14px 14px'}}>
-            <p style={{fontSize:9,letterSpacing:3,textTransform:'uppercase',color:'var(--amber)',marginBottom:10,fontFamily:"'DM Sans',sans-serif"}}>🏨 HOTEL/NIGHT</p>
-            <PriceRow label="Budget" value={data.hotel.budget} small country={country}/>
-            <PriceRow label="Mid" value={data.hotel.mid} small country={country}/>
-            <PriceRow label="Luxury" value={data.hotel.luxury} small country={country}/>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+        {data.hotel && (
+          <div style={{ background: 'var(--ink2)', borderRadius: 14, padding: '14px 14px' }}>
+            <p style={eb}>🏨 HOTEL/NIGHT</p>
+            <PRow label="Budget" val={fmtRange(data.hotel.budget)} sm />
+            <PRow label="Mid"    val={fmtRange(data.hotel.mid)}    sm hi />
+            <PRow label="Luxury" val={fmtRange(data.hotel.luxury)} sm />
           </div>
         )}
-        {data.dailyCost&&(
-          <div style={{background:'var(--ink2)',borderRadius:14,padding:'14px 14px'}}>
-            <p style={{fontSize:9,letterSpacing:3,textTransform:'uppercase',color:'var(--amber)',marginBottom:10,fontFamily:"'DM Sans',sans-serif"}}>💰 DAILY TOTAL</p>
-            <PriceRow label="Budget" value={data.dailyCost.budget} small country={country}/>
-            <PriceRow label="Mid" value={data.dailyCost.mid} small country={country}/>
+        {data.dailyCost && (
+          <div style={{ background: 'var(--ink2)', borderRadius: 14, padding: '14px 14px' }}>
+            <p style={eb}>💰 DAILY TOTAL</p>
+            <PRow label="Budget" val={fmtRange(data.dailyCost.budget)} sm />
+            <PRow label="Mid"    val={fmtRange(data.dailyCost.mid)}    sm hi />
           </div>
         )}
       </div>
 
-      {/* Info chips */}
-      <div style={{display:'flex',flexDirection:'column',gap:6}}>
-        {data.bestTime&&<InfoChip emoji="🗓" text={"Best time: "+data.bestTime}/>}
-        {data.currency&&<InfoChip emoji="💱" text={data.currency}/>}
-        {data.tips?.map((t,i)=><InfoChip key={i} emoji="💡" text={t}/>)}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        {data.bestTime && <Chip emoji="🗓" text={'Best time: ' + String(data.bestTime)} />}
+        {data.currency && <Chip emoji="💱" text={String(data.currency)} />}
+        {Array.isArray(data.tips) && data.tips.map((t, i) => <Chip key={i} emoji="💡" text={String(t)} />)}
       </div>
-
-      <p style={{fontSize:10,color:'rgba(154,136,120,.4)',textAlign:'center',paddingTop:4}}>
-        AI estimates — verify on Google Flights before booking
-      </p>
+      <p style={{ fontSize: 10, color: 'rgba(154,136,120,.4)', textAlign: 'center', margin: 0 }}>AI estimates — verify on Google Flights</p>
     </div>
   )
 }
 
-function PriceRow({label,value,highlight,small,country}){
-  if(!value) return null
-  // Convert USD values to origin currency
-  function convertDisplay(str) {
-    if(!country||country.currency==='USD'||!str) return str
-    const s = String(str)
-    const nums = (s.match(/[\d,]+/g)||[]).map(n=>parseInt(n.replace(/,/g,'')))
-    if(!nums.length) return str
-    const converted = nums.map(n=>{
-      const amt = Math.round(n * country.rate)
-      if(amt>=100000) return country.symbol+(amt/100000).toFixed(1)+'L'
-      if(amt>=1000) return country.symbol+(amt/1000).toFixed(0)+'K'
-      return country.symbol+amt.toLocaleString()
-    })
-    return converted.join(' – ')
-  }
-  const display = convertDisplay(value)
-  return(
-    <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline',marginBottom:small?5:0,gap:8}}>
-      <span style={{fontSize:small?11:13,color:'var(--mist)',flexShrink:0}}>{label}</span>
-      <span style={{fontSize:small?12:15,fontWeight:700,color:highlight?'var(--amber)':'var(--sand)',fontFamily:"'DM Sans',sans-serif",textAlign:'right'}}>{display}</span>
+function PRow({ label, val, hi, sm }) {
+  return (
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: sm ? 5 : 6, gap: 8 }}>
+      <span style={{ fontSize: sm ? 11 : 13, color: 'var(--mist)', flexShrink: 0 }}>{label}</span>
+      <span style={{ fontSize: sm ? 12 : 14, fontWeight: 700, color: hi ? 'var(--amber)' : 'var(--sand)', textAlign: 'right', fontFamily: "'DM Sans',sans-serif" }}>{val}</span>
     </div>
   )
 }
 
-function InfoChip({emoji,text}){
-  return(
-    <div style={{display:'flex',gap:8,alignItems:'flex-start',background:'rgba(255,255,255,.03)',borderRadius:10,padding:'8px 12px'}}>
-      <span style={{fontSize:14,flexShrink:0}}>{emoji}</span>
-      <p style={{fontSize:12,color:'rgba(240,232,214,.65)',lineHeight:1.5}}>{text}</p>
+function Chip({ emoji, text }) {
+  return (
+    <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start', background: 'rgba(255,255,255,.03)', borderRadius: 10, padding: '8px 12px' }}>
+      <span style={{ fontSize: 14, flexShrink: 0 }}>{emoji}</span>
+      <p style={{ fontSize: 12, color: 'rgba(240,232,214,.65)', lineHeight: 1.5, margin: 0 }}>{text}</p>
     </div>
   )
 }
 
-
-function CuisineDisplay({data}){
-  if(data.error) return <p style={{color:'#FF6B6B'}}>{data.error}</p>
-  return(
-    <div style={{display:'flex',flexDirection:'column',gap:16}}>
-      <div style={{textAlign:'center',paddingTop:8}}>
-        <div style={{fontSize:64,marginBottom:8}}>{data.emoji}</div>
-        <h3 style={{fontFamily:"'Cormorant Garamond',serif",fontSize:28,fontWeight:700,color:'var(--amber)',marginBottom:8}}>{data.dish}</h3>
-        <p style={{fontSize:15,color:'rgba(240,232,214,.65)',fontStyle:'italic',lineHeight:1.7,maxWidth:400,margin:'0 auto'}}>{data.description}</p>
+function CuisineDisplay({ data }) {
+  if (data.error) return <ErrBox msg={data.error} />
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div style={{ textAlign: 'center', paddingTop: 8 }}>
+        <div style={{ fontSize: 64, marginBottom: 8 }}>{data.emoji || '🍽'}</div>
+        <h3 style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 28, fontWeight: 700, color: 'var(--amber)', marginBottom: 8 }}>{String(data.dish || '')}</h3>
+        <p style={{ fontSize: 15, color: 'rgba(240,232,214,.65)', fontStyle: 'italic', lineHeight: 1.7, maxWidth: 400, margin: '0 auto' }}>{String(data.description || '')}</p>
       </div>
-      <div style={{background:'var(--ink2)',borderRadius:12,padding:16}}>
-        <p style={sL}>Ingredients</p>
-        <div style={{display:'flex',flexWrap:'wrap',gap:8,marginTop:8}}>{data.ingredients?.map(i=><span key={i} style={{background:'var(--ink3)',borderRadius:100,padding:'5px 14px',fontSize:12,color:'rgba(240,232,214,.75)'}}>{i}</span>)}</div>
-      </div>
-      <div style={{background:'var(--ink2)',borderRadius:12,padding:16}}>
-        <p style={sL}>How to Make It</p>
-        <div style={{marginTop:12,display:'flex',flexDirection:'column',gap:10}}>
-          {data.steps?.map((step,i)=>(
-            <div key={i} style={{display:'flex',gap:12,alignItems:'flex-start'}}>
-              <div style={{width:26,height:26,borderRadius:'50%',background:'rgba(232,146,74,.2)',border:'1px solid rgba(232,146,74,.4)',color:'var(--amber)',fontSize:11,fontWeight:700,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>{i+1}</div>
-              <p style={{fontSize:14,color:'rgba(240,232,214,.8)',lineHeight:1.6,flex:1}}>{step}</p>
-            </div>
-          ))}
+      {Array.isArray(data.ingredients) && data.ingredients.length > 0 && (
+        <div style={{ background: 'var(--ink2)', borderRadius: 12, padding: 16 }}>
+          <p style={sl}>Ingredients</p>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
+            {data.ingredients.map((i, idx) => (
+              <span key={idx} style={{ background: 'var(--ink3)', borderRadius: 100, padding: '5px 14px', fontSize: 12, color: 'rgba(240,232,214,.75)' }}>{String(i)}</span>
+            ))}
+          </div>
         </div>
-      </div>
-      {data.alsoTry?.length>0&&<div style={{background:'var(--ink2)',borderRadius:12,padding:'14px 16px'}}><p style={sL}>Also Try</p><p style={{fontSize:14,color:'var(--sand)',marginTop:6}}>{data.alsoTry.join(' · ')}</p></div>}
-      {data.dietaryNotes&&<p style={{fontSize:12,color:'var(--mist)',fontStyle:'italic'}}>🥗 {data.dietaryNotes}</p>}
+      )}
+      {Array.isArray(data.steps) && data.steps.length > 0 && (
+        <div style={{ background: 'var(--ink2)', borderRadius: 12, padding: 16 }}>
+          <p style={sl}>How to Make It</p>
+          <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {data.steps.map((step, i) => (
+              <div key={i} style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                <div style={{ width: 26, height: 26, borderRadius: '50%', background: 'rgba(232,146,74,.2)', border: '1px solid rgba(232,146,74,.4)', color: 'var(--amber)', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{i + 1}</div>
+                <p style={{ fontSize: 14, color: 'rgba(240,232,214,.8)', lineHeight: 1.6, flex: 1, margin: 0 }}>{String(step)}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      {Array.isArray(data.alsoTry) && data.alsoTry.length > 0 && (
+        <div style={{ background: 'var(--ink2)', borderRadius: 12, padding: '14px 16px' }}>
+          <p style={sl}>Also Try</p>
+          <p style={{ fontSize: 14, color: 'var(--sand)', marginTop: 6, marginBottom: 0 }}>{data.alsoTry.map(String).join(' · ')}</p>
+        </div>
+      )}
+      {data.dietaryNotes && <p style={{ fontSize: 12, color: 'var(--mist)', fontStyle: 'italic', margin: 0 }}>🥗 {String(data.dietaryNotes)}</p>}
     </div>
   )
 }
 
-function PhraseDisplay({data}){
-  const [flipped,setFlipped]=useState({})
-  if(data.error) return <p style={{color:'#FF6B6B'}}>{data.error}</p>
-  return(
-    <div style={{display:'flex',flexDirection:'column',gap:12}}>
-      {data.language&&<div style={{background:'var(--ink2)',borderRadius:12,padding:'12px 16px',marginBottom:4}}><p style={{fontSize:16,color:'var(--amber)',fontWeight:600}}>{data.language}{data.script?` (${data.script})`:''}</p></div>}
-      <p style={{...sL,marginBottom:4}}>Tap any phrase to reveal</p>
-      {data.phrases?.map((p,i)=>(
-        <div key={i} onClick={()=>setFlipped(f=>({...f,[i]:!f[i]}))} style={{background:'var(--ink2)',borderRadius:12,padding:'14px 16px',cursor:'pointer',border:flipped[i]?'1px solid rgba(232,146,74,.4)':'1px solid rgba(240,235,224,.06)',transition:'border-color .2s'}}>
-          <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
-            <div style={{flex:1}}>
-              <p style={{fontSize:9,letterSpacing:2,textTransform:'uppercase',color:'var(--amber)',marginBottom:4}}>{p.emoji} {p.category}</p>
-              <p style={{fontSize:16,color:'var(--sand)',fontWeight:600}}>{p.english}</p>
-              {flipped[i]&&<div style={{marginTop:10,paddingTop:10,borderTop:'1px solid rgba(255,255,255,.06)'}}>
-                <p style={{fontFamily:"'Cormorant Garamond',serif",fontSize:20,color:'var(--amber)',marginBottom:4}}>{p.local}</p>
-                <p style={{fontSize:13,color:'var(--mist)',fontStyle:'italic'}}>Say: {p.pronunciation}</p>
-              </div>}
+function PhraseDisplay({ data }) {
+  const [flipped, setFlipped] = useState({})
+  if (data.error) return <ErrBox msg={data.error} />
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      {data.language && (
+        <div style={{ background: 'var(--ink2)', borderRadius: 12, padding: '12px 16px', marginBottom: 4 }}>
+          <p style={{ fontSize: 16, color: 'var(--amber)', fontWeight: 600, margin: 0 }}>
+            {String(data.language)}{data.script ? ` (${data.script})` : ''}
+          </p>
+        </div>
+      )}
+      <p style={{ ...sl, marginBottom: 4 }}>Tap any phrase to reveal</p>
+      {Array.isArray(data.phrases) && data.phrases.map((p, i) => (
+        <div key={i} onClick={() => setFlipped(f => ({ ...f, [i]: !f[i] }))}
+          style={{ background: 'var(--ink2)', borderRadius: 12, padding: '14px 16px', cursor: 'pointer',
+            border: flipped[i] ? '1px solid rgba(232,146,74,.4)' : '1px solid rgba(240,235,224,.06)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <div style={{ flex: 1 }}>
+              <p style={{ fontSize: 9, letterSpacing: 2, textTransform: 'uppercase', color: 'var(--amber)', marginBottom: 4 }}>{p.emoji} {p.category}</p>
+              <p style={{ fontSize: 16, color: 'var(--sand)', fontWeight: 600, margin: 0 }}>{String(p.english || '')}</p>
+              {flipped[i] && (
+                <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid rgba(255,255,255,.06)' }}>
+                  <p style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 20, color: 'var(--amber)', marginBottom: 4 }}>{String(p.local || '')}</p>
+                  <p style={{ fontSize: 13, color: 'var(--mist)', fontStyle: 'italic', margin: 0 }}>Say: {String(p.pronunciation || '')}</p>
+                </div>
+              )}
             </div>
-            <span style={{color:'var(--mist)',fontSize:20,marginLeft:12}}>{flipped[i]?'−':'+'}</span>
+            <span style={{ color: 'var(--mist)', fontSize: 20, marginLeft: 12 }}>{flipped[i] ? '−' : '+'}</span>
           </div>
         </div>
       ))}
-      {data.culturalTips?.length>0&&<div style={{background:'var(--ink2)',borderRadius:12,padding:'14px 16px',marginTop:8}}><p style={sL}>Cultural Tips</p><div style={{marginTop:10,display:'flex',flexDirection:'column',gap:8}}>{data.culturalTips.map((t,i)=><p key={i} style={{fontSize:13,color:'rgba(240,232,214,.75)',lineHeight:1.5,display:'flex',gap:8}}><span>•</span><span>{t}</span></p>)}</div></div>}
-      {data.emergencyNumbers&&<div style={{background:'rgba(255,80,80,.06)',border:'1px solid rgba(255,80,80,.2)',borderRadius:12,padding:'14px 16px',marginTop:4}}><p style={{...sL,color:'#FF6B6B'}}>Emergency Numbers</p><div style={{display:'flex',gap:16,marginTop:10,flexWrap:'wrap'}}>{Object.entries(data.emergencyNumbers).map(([k,v])=><div key={k}><p style={{fontSize:10,color:'rgba(255,100,100,.7)',textTransform:'uppercase',letterSpacing:1}}>{k}</p><p style={{fontSize:20,fontWeight:700,color:'#FF6B6B'}}>{v}</p></div>)}</div></div>}
+      {Array.isArray(data.culturalTips) && data.culturalTips.length > 0 && (
+        <div style={{ background: 'var(--ink2)', borderRadius: 12, padding: '14px 16px', marginTop: 8 }}>
+          <p style={sl}>Cultural Tips</p>
+          <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {data.culturalTips.map((t, i) => (
+              <p key={i} style={{ fontSize: 13, color: 'rgba(240,232,214,.75)', lineHeight: 1.5, display: 'flex', gap: 8, margin: 0 }}>
+                <span>•</span><span>{String(t)}</span>
+              </p>
+            ))}
+          </div>
+        </div>
+      )}
+      {data.emergencyNumbers && typeof data.emergencyNumbers === 'object' && (
+        <div style={{ background: 'rgba(255,80,80,.06)', border: '1px solid rgba(255,80,80,.2)', borderRadius: 12, padding: '14px 16px' }}>
+          <p style={{ ...sl, color: '#FF6B6B' }}>Emergency Numbers</p>
+          <div style={{ display: 'flex', gap: 16, marginTop: 10, flexWrap: 'wrap' }}>
+            {Object.entries(data.emergencyNumbers).map(([k, v]) => (
+              <div key={k}>
+                <p style={{ fontSize: 9, color: 'rgba(255,100,100,.7)', textTransform: 'uppercase', letterSpacing: 1, margin: 0 }}>{k}</p>
+                <p style={{ fontSize: 20, fontWeight: 700, color: '#FF6B6B', margin: 0 }}>{String(v)}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
 
-const sL={fontSize:9,letterSpacing:3,textTransform:'uppercase',color:'var(--amber)',fontFamily:"'DM Sans',sans-serif"}
-const iS={flex:1,background:'var(--ink2)',border:'1px solid rgba(240,235,224,.14)',borderRadius:8,padding:'12px 14px',fontFamily:"'DM Sans',sans-serif",fontSize:14,color:'var(--sand)',outline:'none'}
-const bS={
-  amber:{background:'rgba(232,146,74,.14)',border:'1px solid rgba(232,146,74,.35)',color:'var(--amber2)',padding:'11px 8px',borderRadius:8,fontSize:12,fontWeight:600,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",whiteSpace:'nowrap',width:'100%',textAlign:'center'},
-  violet:{background:'rgba(123,108,176,.14)',border:'1px solid rgba(123,108,176,.35)',color:'#C0B4E8',padding:'11px 8px',borderRadius:8,fontSize:12,fontWeight:600,cursor:'pointer',fontFamily:"'DM Sans',sans-serif",whiteSpace:'nowrap',width:'100%',textAlign:'center'},
-}
+const lbl = { fontSize: 10, letterSpacing: 2, textTransform: 'uppercase', color: 'var(--mist)', display: 'block', marginBottom: 6, fontFamily: "'DM Sans',sans-serif" }
+const inp = { width: '100%', background: 'var(--ink2)', border: '1px solid rgba(240,235,224,.14)', borderRadius: 8, padding: '12px 14px', fontFamily: "'DM Sans',sans-serif", fontSize: 14, color: 'var(--sand)', outline: 'none', boxSizing: 'border-box', display: 'block' }
+const eb  = { fontSize: 9, letterSpacing: 3, textTransform: 'uppercase', color: 'var(--amber)', fontFamily: "'DM Sans',sans-serif", margin: '0 0 8px 0' }
+const sl  = { fontSize: 9, letterSpacing: 3, textTransform: 'uppercase', color: 'var(--amber)', fontFamily: "'DM Sans',sans-serif" }
