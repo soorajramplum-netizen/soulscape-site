@@ -475,25 +475,6 @@ function InfoChip({emoji,text}){
   )
 }
 
-){
-  if(!value) return null
-  return(
-    <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline',marginBottom:small?5:0}}>
-      <span style={{fontSize:small?11:13,color:'var(--mist)'}}>{label}</span>
-      <span style={{fontSize:small?12:15,fontWeight:700,color:highlight?'var(--amber)':'var(--sand)',fontFamily:"'DM Sans',sans-serif"}}>{value}</span>
-    </div>
-  )
-}
-
-){
-  return(
-    <div style={{display:'flex',gap:8,alignItems:'flex-start',background:'rgba(255,255,255,.03)',borderRadius:10,padding:'8px 12px'}}>
-      <span style={{fontSize:14,flexShrink:0}}>{emoji}</span>
-      <p style={{fontSize:12,color:'rgba(240,232,214,.65)',lineHeight:1.5}}>{text}</p>
-    </div>
-  )
-}
-
 
 function CuisineDisplay({data}){
   if(data.error) return <p style={{color:'#FF6B6B'}}>{data.error}</p>
