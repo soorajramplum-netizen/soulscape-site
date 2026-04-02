@@ -427,14 +427,10 @@ function PriceDisplay({ data, days, country }) {
 
   const d = days || 7
   const [flLo, flHi]   = parseNums(data.flights?.economy)
-  const [htBlo, htBhi] = parseNums(data.hotel?.budget)
   const [htMlo, htMhi] = parseNums(data.hotel?.mid)
   const [htLlo, htLhi] = parseNums(data.hotel?.luxury)
-  const [dyBlo, dyBhi] = parseNums(data.dailyCost?.budget)
   const [dyMlo, dyMhi] = parseNums(data.dailyCost?.mid)
 
-  const totBudLo = flLo + (htBlo + dyBlo) * d
-  const totBudHi = flHi + (htBhi + dyBhi) * d
   const totMidLo = flLo + (htMlo + dyMlo) * d
   const totMidHi = flHi + (htMhi + dyMhi) * d
   const totLuxLo = flLo + (htLlo + dyMhi * 1.5) * d
@@ -447,16 +443,16 @@ function PriceDisplay({ data, days, country }) {
       {hasTotals && (
         <div style={{ background: 'linear-gradient(135deg,rgba(232,146,74,.2),rgba(232,146,74,.06))', border: '2px solid rgba(232,146,74,.4)', borderRadius: 16, padding: '18px 18px' }}>
           <p style={eb}>🧳 TOTAL TRIP — {d} NIGHTS{cur ? ` · ${cur}` : ''}</p>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             {[
-              { label: 'Budget',  lo: totBudLo, hi: totBudHi, c: '#58E87A' },
-              { label: 'Mid',     lo: totMidLo, hi: totMidHi, c: '#E8924A' },
-              { label: 'Comfort', lo: totLuxLo, hi: totLuxHi, c: '#5BC8FF' },
-            ].map(({ label, lo, hi, c }) => (
-              <div key={label} style={{ textAlign: 'center', background: 'rgba(0,0,0,.25)', borderRadius: 10, padding: '10px 4px' }}>
-                <p style={{ fontSize: 9, color: 'var(--mist)', marginBottom: 5, letterSpacing: 1, fontFamily: "'DM Sans',sans-serif" }}>{label}</p>
-                <p style={{ fontSize: 14, fontWeight: 700, color: c, lineHeight: 1.1, margin: 0 }}>{fmt(lo)}</p>
-                <p style={{ fontSize: 10, color: 'rgba(255,255,255,.3)', margin: 0 }}>– {fmt(hi)}</p>
+              { label: 'Explorer',  lo: totMidLo, hi: totMidHi, c: '#E8924A', sub: 'Comfortable & smart' },
+              { label: 'Indulge',   lo: totLuxLo, hi: totLuxHi, c: '#5BC8FF', sub: 'Premium experience' },
+            ].map(({ label, lo, hi, c, sub }) => (
+              <div key={label} style={{ textAlign: 'center', background: 'rgba(0,0,0,.25)', borderRadius: 10, padding: '12px 8px' }}>
+                <p style={{ fontSize: 9, color: c, marginBottom: 3, letterSpacing: 1.5, fontFamily: "'DM Sans',sans-serif", fontWeight: 700 }}>{label}</p>
+                <p style={{ fontSize: 9, color: 'var(--mist)', marginBottom: 8, fontFamily: "'DM Sans',sans-serif" }}>{sub}</p>
+                <p style={{ fontSize: 16, fontWeight: 700, color: c, lineHeight: 1.1, margin: 0 }}>{fmt(lo)}</p>
+                <p style={{ fontSize: 11, color: 'rgba(255,255,255,.35)', margin: '2px 0 0' }}>to {fmt(hi)}</p>
               </div>
             ))}
           </div>
@@ -478,9 +474,28 @@ function PriceDisplay({ data, days, country }) {
       {data.flights && (
         <div style={{ background: 'var(--ink2)', borderRadius: 14, padding: '14px 16px' }}>
           <p style={eb}>✈️ FLIGHTS (ONE WAY)</p>
-          <PRow label="Economy" val={fmtRange(data.flights.economy)} hi />
-          {data.flights.business && <PRow label="Business" val={fmtRange(data.flights.business)} />}
+          {data.flights.directAvailable === false && (
+            <div style={{ background: 'rgba(255,107,107,.08)', border: '1px solid rgba(255,107,107,.25)', borderRadius: 8, padding: '8px 12px', marginBottom: 10, display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+              <span style={{ fontSize: 14, flexShrink: 0 }}>🔄</span>
+              <p style={{ fontSize: 12, color: '#FF8A8A', lineHeight: 1.5, margin: 0 }}>
+                No direct flights available. Price includes connection via {data.flights.connectionCity || 'a hub city'}.
+                {data.flights.connectionTime ? ` Add ~${data.flights.connectionTime} for layover.` : ''}
+              </p>
+            </div>
+          )}
+          <PRow label="Explorer class" val={fmtRange(data.flights.economy)} hi />
+          {data.flights.business && <PRow label="Premium cabin" val={fmtRange(data.flights.business)} />}
           {data.flights.notes && <p style={{ fontSize: 12, color: 'var(--mist)', marginTop: 8, fontStyle: 'italic', lineHeight: 1.5, borderTop: '1px solid rgba(255,255,255,.05)', paddingTop: 8, marginBottom: 0 }}>💡 {data.flights.notes}</p>}
+          <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
+            {[
+              { label: '🔍 Google Flights', url: `https://www.google.com/travel/flights/search?q=flights+to+${encodeURIComponent(data.nearestAirport||'destination')}` },
+              { label: '🌐 Skyscanner', url: `https://www.skyscanner.net/transport/flights/anywhere/${encodeURIComponent(data.nearestAirport||'')}` },
+            ].map(({ label, url }) => (
+              <a key={label} href={url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, color: 'var(--amber)', background: 'rgba(232,146,74,.1)', border: '1px solid rgba(232,146,74,.25)', padding: '5px 12px', borderRadius: 100, textDecoration: 'none', fontFamily: "'DM Sans',sans-serif" }}>
+                {label}
+              </a>
+            ))}
+          </div>
         </div>
       )}
 
@@ -488,16 +503,14 @@ function PriceDisplay({ data, days, country }) {
         {data.hotel && (
           <div style={{ background: 'var(--ink2)', borderRadius: 14, padding: '14px 14px' }}>
             <p style={eb}>🏨 HOTEL/NIGHT</p>
-            <PRow label="Budget" val={fmtRange(data.hotel.budget)} sm />
-            <PRow label="Mid"    val={fmtRange(data.hotel.mid)}    sm hi />
-            <PRow label="Luxury" val={fmtRange(data.hotel.luxury)} sm />
+            <PRow label="Explorer" val={fmtRange(data.hotel.mid)}    sm hi />
+            <PRow label="Indulge" val={fmtRange(data.hotel.luxury)} sm />
           </div>
         )}
         {data.dailyCost && (
           <div style={{ background: 'var(--ink2)', borderRadius: 14, padding: '14px 14px' }}>
             <p style={eb}>💰 DAILY TOTAL</p>
-            <PRow label="Budget" val={fmtRange(data.dailyCost.budget)} sm />
-            <PRow label="Mid"    val={fmtRange(data.dailyCost.mid)}    sm hi />
+            <PRow label="Explorer" val={fmtRange(data.dailyCost.mid)}    sm hi />
           </div>
         )}
       </div>
