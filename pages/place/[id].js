@@ -547,6 +547,58 @@ function Chip({ emoji, text }) {
   )
 }
 
+function PhraseCard({ p }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <div onClick={() => setOpen(o => !o)} style={{
+      background: 'var(--ink2)', borderRadius: 12, cursor: 'pointer',
+      border: open ? '1px solid rgba(232,146,74,.35)' : '1px solid rgba(240,235,224,.06)',
+      overflow: 'hidden', transition: 'border-color .2s',
+    }}>
+      {/* Always visible: category + English */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '13px 16px' }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <p style={{ fontSize: 9, letterSpacing: 2, textTransform: 'uppercase', color: 'var(--amber)', marginBottom: 3, fontFamily: "'DM Sans',sans-serif" }}>
+            {p.emoji} {p.category}
+          </p>
+          <p style={{ fontSize: 15, color: 'var(--sand)', fontWeight: 600, margin: 0 }}>{String(p.english || '')}</p>
+        </div>
+        <span style={{ color: open ? 'var(--amber)' : 'var(--mist)', fontSize: 18, marginLeft: 12, flexShrink: 0, transition: 'color .2s' }}>
+          {open ? '−' : '+'}
+        </span>
+      </div>
+
+      {/* Expanded: script + pronunciation */}
+      {open && (
+        <div style={{ borderTop: '1px solid rgba(255,255,255,.06)', padding: '14px 16px 16px', background: 'rgba(232,146,74,.04)' }}>
+          {/* Native script — large, for showing to locals */}
+          <div style={{ background: 'rgba(0,0,0,.2)', borderRadius: 10, padding: '14px 16px', marginBottom: 10, textAlign: 'center' }}>
+            <p style={{ fontSize: 9, letterSpacing: 2, textTransform: 'uppercase', color: 'rgba(232,146,74,.6)', marginBottom: 6, fontFamily: "'DM Sans',sans-serif" }}>
+              SHOW THIS TO LOCALS
+            </p>
+            <p style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 28, color: 'var(--amber)', lineHeight: 1.4, margin: 0 }}>
+              {String(p.local || '')}
+            </p>
+          </div>
+          {/* Pronunciation — for speaking */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ fontSize: 18 }}>🔊</span>
+            <div>
+              <p style={{ fontSize: 9, letterSpacing: 2, textTransform: 'uppercase', color: 'rgba(88,232,122,.6)', marginBottom: 3, fontFamily: "'DM Sans',sans-serif" }}>
+                SAY IT LIKE THIS
+              </p>
+              <p style={{ fontSize: 16, color: '#58E87A', fontWeight: 600, margin: 0, fontFamily: "'DM Sans',sans-serif" }}>
+                {String(p.pronunciation || '')}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+
 function CuisineDisplay({ data }) {
   if (data.error) return <ErrBox msg={data.error} />
   return (
@@ -591,36 +643,23 @@ function CuisineDisplay({ data }) {
 }
 
 function PhraseDisplay({ data }) {
-  const [flipped, setFlipped] = useState({})
   if (data.error) return <ErrBox msg={data.error} />
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
       {data.language && (
-        <div style={{ background: 'var(--ink2)', borderRadius: 12, padding: '12px 16px', marginBottom: 4 }}>
-          <p style={{ fontSize: 16, color: 'var(--amber)', fontWeight: 600, margin: 0 }}>
-            {String(data.language)}{data.script ? ` (${data.script})` : ''}
-          </p>
-        </div>
-      )}
-      <p style={{ ...sl, marginBottom: 4 }}>Tap any phrase to reveal</p>
-      {Array.isArray(data.phrases) && data.phrases.map((p, i) => (
-        <div key={i} onClick={() => setFlipped(f => ({ ...f, [i]: !f[i] }))}
-          style={{ background: 'var(--ink2)', borderRadius: 12, padding: '14px 16px', cursor: 'pointer',
-            border: flipped[i] ? '1px solid rgba(232,146,74,.4)' : '1px solid rgba(240,235,224,.06)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <div style={{ flex: 1 }}>
-              <p style={{ fontSize: 9, letterSpacing: 2, textTransform: 'uppercase', color: 'var(--amber)', marginBottom: 4 }}>{p.emoji} {p.category}</p>
-              <p style={{ fontSize: 16, color: 'var(--sand)', fontWeight: 600, margin: 0 }}>{String(p.english || '')}</p>
-              {flipped[i] && (
-                <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid rgba(255,255,255,.06)' }}>
-                  <p style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 20, color: 'var(--amber)', marginBottom: 4 }}>{String(p.local || '')}</p>
-                  <p style={{ fontSize: 13, color: 'var(--mist)', fontStyle: 'italic', margin: 0 }}>Say: {String(p.pronunciation || '')}</p>
-                </div>
-              )}
-            </div>
-            <span style={{ color: 'var(--mist)', fontSize: 20, marginLeft: 12 }}>{flipped[i] ? '−' : '+'}</span>
+        <div style={{ background: 'linear-gradient(135deg,rgba(232,146,74,.12),rgba(232,146,74,.04))', border: '1px solid rgba(232,146,74,.3)', borderRadius: 14, padding: '14px 18px', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 12 }}>
+          <span style={{ fontSize: 28 }}>{data.flag || '🗣️'}</span>
+          <div>
+            <p style={{ fontSize: 16, color: 'var(--amber)', fontWeight: 700, margin: 0, fontFamily: "'Cormorant Garamond',serif" }}>{String(data.language)}</p>
+            {data.script && <p style={{ fontSize: 11, color: 'var(--mist)', margin: '2px 0 0' }}>{data.script}</p>}
           </div>
         </div>
+      )}
+      <p style={{ fontSize: 11, color: 'var(--mist)', marginBottom: 4, fontFamily: "'DM Sans',sans-serif" }}>
+        Tap any phrase to see the native script + how to say it
+      </p>
+      {Array.isArray(data.phrases) && data.phrases.map((p, i) => (
+        <PhraseCard key={i} p={p} />
       ))}
       {Array.isArray(data.culturalTips) && data.culturalTips.length > 0 && (
         <div style={{ background: 'var(--ink2)', borderRadius: 12, padding: '14px 16px', marginTop: 8 }}>
