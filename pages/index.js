@@ -100,13 +100,13 @@ export default function Home() {
             style={{
               position: 'absolute', inset: 0,
               width: '100%', height: '100%', objectFit: 'cover',
-              opacity: i === currentBg ? 0.18 : 0,
+              opacity: i === currentBg ? 0.28 : 0,
               transition: 'opacity 2.5s ease',
             }}
           />
         ))}
         {/* Dark overlay so text stays crisp */}
-        <div style={{ position: 'absolute', inset: 0, background: 'rgba(8,5,18,.55)' }} />
+        <div style={{ position: 'absolute', inset: 0, background: 'rgba(8,5,18,.42)' }} />
       </div>
 
       <main style={s.main}>

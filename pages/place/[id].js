@@ -417,11 +417,15 @@ function PriceDisplay({ data, days, country }) {
     return s + amt.toLocaleString()
   }
 
-  function fmtRange(str) {
-    if (!str) return '—'
-    if (!country || country.currency === 'USD') return String(str)
+  function fmtRange(val) {
+    // Defend against [object Object] — flatten nested objects to string
+    if (!val) return '—'
+    let str = typeof val === 'object' ? (val.economy || val.mid || val.range || Object.values(val)[0] || '') : val
+    str = String(str || '—')
+    if (str === '[object Object]' || str === 'undefined') return '—'
+    if (!country || country.currency === 'USD') return str
     const [lo, hi] = parseNums(str)
-    if (!lo) return String(str)
+    if (!lo) return str
     return lo === hi ? fmt(lo) : fmt(lo) + ' – ' + fmt(hi)
   }
 
@@ -517,7 +521,7 @@ function PriceDisplay({ data, days, country }) {
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         {data.bestTime && <Chip emoji="🗓" text={'Best time: ' + String(data.bestTime)} />}
-        {data.currency && <Chip emoji="💱" text={String(data.currency)} />}
+        {data.currency && <Chip emoji="💱" text={typeof data.currency === 'object' ? JSON.stringify(data.currency) : String(data.currency)} />}
         {Array.isArray(data.tips) && data.tips.map((t, i) => <Chip key={i} emoji="💡" text={String(t)} />)}
       </div>
       <p style={{ fontSize: 10, color: 'rgba(154,136,120,.4)', textAlign: 'center', margin: 0 }}>AI estimates — verify on Google Flights</p>
