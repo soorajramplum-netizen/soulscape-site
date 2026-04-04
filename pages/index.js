@@ -87,7 +87,7 @@ export default function Home() {
     <>
       <Head>
         <title>SoulScape — Where do you need to go?</title>
-        <meta name="description" content="by Sooraj Ram." />
+        <meta name="description" content="A place in this world speaks to exactly how you feel right now." />
       </Head>
 
       {/* Background video layer */}
@@ -122,7 +122,7 @@ export default function Home() {
           <span style={s.t1}>Soul</span>
           <span style={s.t2}>Scape</span>
         </h1>
-        <p style={s.sub}>A place in this world speaks to exactly how you feel right now.</p>
+        <p style={s.sub}>By Sooraj Ram.</p>
 
         {/* City input */}
         <div style={s.cityRow}>
