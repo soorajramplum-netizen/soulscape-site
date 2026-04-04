@@ -87,7 +87,7 @@ export default function Home() {
     <>
       <Head>
         <title>SoulScape — Where do you need to go?</title>
-        <meta name="description" content="A place in this world speaks to exactly how you feel right now." />
+        <meta name="description" content="by Sooraj Ram." />
       </Head>
 
       {/* Background video layer */}
