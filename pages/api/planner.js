@@ -1,95 +1,83 @@
-// pages/api/planner.js — 8-level Pre-Trip Planner
-// Each level generates a small, reliable JSON game payload
+// pages/api/planner.js
+// Generates 110-question destination-specific course using the gamification design
 import { callAI, parseJSON } from '../../lib/ai'
 
-export const PHASES = [
-  { id: 1, name: 'Discover', emoji: '🔍', color: '#E8924A', levels: [1,2],   unlockWeeks: 999 },
-  { id: 2, name: 'Prepare',  emoji: '🎒', color: '#5BC8FF', levels: [3,4],   unlockWeeks: 12  },
-  { id: 3, name: 'Speak',    emoji: '💬', color: '#58E87A', levels: [5,6],   unlockWeeks: 8   },
-  { id: 4, name: 'Arrive',   emoji: '🛬', color: '#B0D8FF', levels: [7,8],   unlockWeeks: 1   },
+export const LEVEL_META = [
+  { level: 1, theme: 'Geography & Basecamp',   emoji: '🗺️',  xp: 100, desc: 'Orientation, neighbourhoods, where to stay' },
+  { level: 2, theme: 'Transit Mastery',         emoji: '🚌', xp: 100, desc: 'Buses, trains, ferries, taxis, tickets' },
+  { level: 3, theme: 'Language Mega-Level',      emoji: '💬', xp: 300, desc: 'Greetings · Food · Navigation — 30 questions' },
+  { level: 4, theme: 'Local Etiquette',          emoji: '🙏', xp: 100, desc: 'Dress codes, faux pas, cultural rules' },
+  { level: 5, theme: 'Culinary Survival',        emoji: '🍽', xp: 100, desc: 'Meal times, ordering, table charges' },
+  { level: 6, theme: 'Money & Scams',            emoji: '💰', xp: 100, desc: 'ATMs, currency, tourist traps' },
+  { level: 7, theme: 'Itinerary & Optimisation', emoji: '📅', xp: 100, desc: 'Crowds, timing, booking windows' },
+  { level: 8, theme: 'Packing Puzzle',           emoji: '🧳', xp: 100, desc: 'Weather, plugs, terrain-specific gear' },
+  { level: 9, theme: 'Touchdown Protocol',       emoji: '✈️',  xp: 100, desc: 'Airport to city, first 24 hours' },
 ]
 
-export const LEVEL_META = {
-  1: { title: 'Fact or Fiction',     emoji: '⚡', phase: 1, game: 'truefalse', xp: 80,  desc: '8 wild truths and myths about this place' },
-  2: { title: 'Know Your Destination', emoji: '🧭', phase: 1, game: 'quiz',    xp: 80,  desc: '6 questions that reveal what to expect' },
-  3: { title: 'Visa and Money',       emoji: '🛂', phase: 2, game: 'quiz',    xp: 70,  desc: 'Entry rules, currency, and tipping' },
-  4: { title: 'Packing Challenge',    emoji: '🧳', phase: 2, game: 'fillblank',xp: 80,  desc: 'Pack smart for this specific trip' },
-  5: { title: 'Phrase Bootcamp',      emoji: '🗣️', phase: 3, game: 'flashcard',xp: 100, desc: '8 essential phrases with pronunciation' },
-  6: { title: 'Culture Rules',        emoji: '🙏', phase: 3, game: 'truefalse',xp: 70,  desc: 'Dos, donts and cultural surprises' },
-  7: { title: 'Dish Detective',       emoji: '🍽', phase: 4, game: 'quiz',    xp: 70,  desc: '6 questions about local food culture' },
-  8: { title: 'Day 1 Playbook',       emoji: '🗺️', phase: 4, game: 'quiz',    xp: 90,  desc: 'Nail your first 24 hours' },
-}
+const MECHANICS = ['swipe', 'visual_tap', 'slider', 'sequence', 'matching', 'scenario', 'speed_tf']
 
-// Each prompt is tight — asks for small JSON that reliably parses
-const PROMPTS = {
+function buildPrompt(dest, country, language, travelMonth) {
+  return `You are an expert travel gamification designer creating a Pre-Trip Course for "${dest}", ${country}.
+Travel month: ${travelMonth}. Primary local language: ${language}.
 
-  1: (dest) => `Create 8 True or False statements about ${dest}. Make 4 true and 4 false, mixed randomly. Use genuinely surprising facts.
-Reply with this JSON and nothing else:
-{"statements":[{"statement":"Claim about ${dest}.","answer":true,"explanation":"Why true with interesting context.","emoji":"🌊"},{"statement":"Believable myth.","answer":false,"explanation":"Why false and what the truth is.","emoji":"❌"}]}
-Include exactly 8 statements total.`,
+Generate a JSON object with 9 levels, 110 questions total:
+- Levels 1,2,4,5,6,7,8,9: exactly 10 questions each
+- Level 3 (Language Mega-Level): exactly 30 questions (10 greetings, 10 food vocabulary, 10 navigation/signs)
 
-  2: (dest) => `Create 6 multiple-choice questions about ${dest} that reveal what a first-time visitor needs to know.
-Reply with this JSON and nothing else:
-{"questions":[{"q":"Question about ${dest}?","options":["Option A","Option B","Option C","Option D"],"correct":0,"fact":"Interesting fact revealed by the correct answer."}]}
-Include exactly 6 questions.`,
+MECHANICS — use all 7, varied across every level:
+- swipe: user swipes RIGHT (good idea) or LEFT (bad idea). correct_answer is "right" or "left"
+- visual_tap: user taps correct item in a described scene. correct_answer is the item to tap
+- slider: user guesses a number/time/price. correct_answer is the target value as string e.g. "€2.40" or "8:00 PM"
+- sequence: user orders 3-4 steps. correct_answer is array of items in correct order
+- matching: user matches 3 pairs. correct_answer is object with key-value pairs e.g. {"Ferry":"€10-15","Bus":"€2-3"}
+- scenario: multiple choice with 3 options. correct_answer is the correct option text
+- speed_tf: rapid true or false. correct_answer is "true" or "false"
 
-  3: (dest, country) => `Create 6 quiz questions about visa requirements, currency, and tipping in ${dest}${country ? ', ' + country : ''}.
-Reply with this JSON and nothing else:
-{"questions":[{"q":"Practical question about entering or paying in ${dest}?","options":["Option A","Option B","Option C","Option D"],"correct":0,"explanation":"Practical advice for travellers."}]}
-Include exactly 6 questions.`,
+CRITICAL RULES:
+- Every question MUST be specific to "${dest}" — real place names, real prices, real transport names
+- Level 8 packing MUST reference ${travelMonth} weather specifically
+- Level 9 MUST describe the actual airport and route from airport to ${dest}
+- feedback_text MUST explain WHY — teach something real, not just "correct!"
+- Wrong answer feedback must be educational, not punishing
+- Prices in local currency
 
-  4: (dest, travelDate) => `Create 6 fill-in-the-blank packing questions for ${dest} in ${travelDate}.
-Each sentence has one blank marked ___ with 3 word options.
-Reply with this JSON and nothing else:
-{"intro":"One sentence on packing philosophy for this trip.","questions":[{"sentence":"For ${dest} in ${travelDate}, pack ___ to deal with the heat.","blank":"correct answer","options":["correct answer","wrong option","wrong option"],"correct":0,"tip":"Why this matters for this specific destination."}]}
-Include exactly 6 questions.`,
-
-  5: (dest, country) => `Give 8 essential travel phrases for ${dest}${country ? ', ' + country : ''}.
-Reply with this JSON and nothing else:
-{"language":"Language name","cards":[{"front":"Hello","back":"local word","pronunciation":"phonetic","emoji":"👋","memoryHook":"Memory trick."},{"front":"Thank you","back":"local word","pronunciation":"phonetic","emoji":"🙏","memoryHook":"Memory trick."},{"front":"How much?","back":"local phrase","pronunciation":"phonetic","emoji":"💰","memoryHook":"Memory trick."},{"front":"Where is the bathroom?","back":"local phrase","pronunciation":"phonetic","emoji":"🚻","memoryHook":"Memory trick."},{"front":"Help!","back":"local word","pronunciation":"phonetic","emoji":"🆘","memoryHook":"Memory trick."},{"front":"I do not understand","back":"local phrase","pronunciation":"phonetic","emoji":"😕","memoryHook":"Memory trick."},{"front":"Delicious!","back":"local word","pronunciation":"phonetic","emoji":"😋","memoryHook":"Memory trick."},{"front":"Goodbye","back":"local word","pronunciation":"phonetic","emoji":"👋","memoryHook":"Memory trick."}]}
-Replace all placeholder text with real values for ${dest}.`,
-
-  6: (dest, country) => `Create 8 True or False statements about cultural rules and etiquette in ${dest}${country ? ', ' + country : ''}. Mix surprising truths with common Western misconceptions.
-Reply with this JSON and nothing else:
-{"statements":[{"statement":"Cultural claim about ${dest}.","answer":true,"explanation":"Why with cultural reasoning.","emoji":"🙏"}]}
-Include exactly 8 statements, mix of true and false.`,
-
-  7: (dest, country) => `Create 6 quiz questions about food culture and iconic dishes of ${dest}${country ? ', ' + country : ''}.
-Reply with this JSON and nothing else:
-{"questions":[{"q":"Food question about ${dest}?","options":["Option A","Option B","Option C","Option D"],"correct":0,"explanation":"Food knowledge about this destination."}]}
-Include exactly 6 questions.`,
-
-  8: (dest, country, homecity) => `Create 6 quiz questions about the first 24 hours in ${dest}${country ? ', ' + country : ''} for a traveller from ${homecity || 'abroad'}.
-Cover: airport transport, SIM card, first meal, what to do first, what to avoid.
-Reply with this JSON and nothing else:
-{"questions":[{"q":"Day 1 question for ${dest}?","options":["Option A","Option B","Option C","Option D"],"correct":0,"explanation":"Local knowledge behind this answer."}]}
-Include exactly 6 questions.`,
+Return ONLY this JSON structure, nothing else:
+{
+  "destination": "${dest}",
+  "country": "${country}",
+  "language": "${language}",
+  "travelMonth": "${travelMonth}",
+  "levels": [
+    {
+      "level_number": 1,
+      "theme": "Geography & Basecamp",
+      "questions": [
+        {
+          "mechanic": "swipe",
+          "prompt": "Your hotel website shows 187 steps from the road to reception.",
+          "correct_answer": "right",
+          "feedback_text": "Positano is built vertically into a cliff — steps are unavoidable. Pack light and embrace the workout."
+        }
+      ]
+    }
+  ]
+}`
 }
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end()
-  const { level, dest, country, travelDate, homecity } = req.body
-  if (!level || !dest) return res.status(400).json({ error: 'level and dest required' })
+  const { dest, country, language, travelMonth, tripId } = req.body
+  if (!dest || !travelMonth) return res.status(400).json({ error: 'dest and travelMonth required' })
 
-  const n = parseInt(level)
-  const fn = PROMPTS[n]
-  if (!fn) return res.status(400).json({ error: `Unknown level: ${level}` })
+  const prompt = buildPrompt(dest, country || '', language || 'English', travelMonth)
+  const aiResult = await callAI(prompt, 4000)
 
-  const prompt = fn(dest, country || '', travelDate || 'your travel month', homecity || 'your city')
-  const ai = await callAI(prompt, 1200)
+  if (!aiResult) return res.status(503).json({ error: 'AI unavailable. Check API keys.' })
 
-  if (!ai) return res.status(503).json({
-    error: 'AI unavailable. Make sure GEMINI_API_KEY, GROQ_API_KEY, or OPENROUTER_API_KEY is set in Vercel.'
-  })
-
-  const data = parseJSON(ai.text)
-  if (!data) {
-    return res.status(422).json({
-      error: 'Parse failed',
-      _raw: ai.text?.slice(0, 300),
-      provider: ai.provider
-    })
+  const data = parseJSON(aiResult.text)
+  if (!data || !data.levels) {
+    return res.status(422).json({ error: 'Could not generate course. Try again.', raw: aiResult.text.slice(0, 300) })
   }
 
-  return res.json({ data, level: n, provider: ai.provider })
+  return res.json({ ...data, provider: aiResult.provider })
 }

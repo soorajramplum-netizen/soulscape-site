@@ -1,150 +1,130 @@
 // pages/planner/[tripId]/level/[n].js
-// The actual game session — Duolingo-style interactive levels
-
+// Full game engine — all 7 mechanics, teaching feedback on every answer
 import Head from 'next/head'
 import { useRouter } from 'next/router'
 import { useState, useEffect, useRef } from 'react'
-import { LEVEL_META, PHASES } from '../../../api/planner'
+import { LEVEL_META } from '../../../api/planner'
 
-// ── CONFETTI ────────────────────────────────────────────────────────────────
+// ── CONFETTI ─────────────────────────────────────────────────────────────────
 function Confetti({ active }) {
-  const pieces = Array.from({ length: 40 }, (_, i) => ({
-    id: i,
-    x: Math.random() * 100,
-    color: ['#E8924A','#58E87A','#5BC8FF','#FF85C0','#FFD060','#B0D8FF'][i % 6],
-    delay: Math.random() * 0.5,
-    dur: 0.8 + Math.random() * 0.6,
-  }))
   if (!active) return null
+  const pieces = Array.from({ length: 36 }, (_, i) => ({
+    id: i, x: Math.random() * 100,
+    color: ['#E8924A','#58E87A','#5BC8FF','#FF85C0','#FFD060','#B0D8FF'][i % 6],
+    delay: Math.random() * 0.4, dur: 0.7 + Math.random() * 0.5,
+  }))
   return (
-    <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 200, overflow: 'hidden' }}>
+    <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 300, overflow: 'hidden' }}>
       {pieces.map(p => (
-        <div key={p.id} style={{
-          position: 'absolute', top: -12, left: p.x + '%',
-          width: 8, height: 8, borderRadius: 2,
-          background: p.color,
-          animation: `confettiFall ${p.dur}s ${p.delay}s ease-in forwards`,
-        }} />
+        <div key={p.id} style={{ position: 'absolute', top: -10, left: p.x + '%', width: 8, height: 8, borderRadius: 2, background: p.color, animation: `fall ${p.dur}s ${p.delay}s ease-in forwards` }} />
       ))}
-      <style>{`@keyframes confettiFall { to { transform: translateY(110vh) rotate(720deg); opacity: 0; } }`}</style>
+      <style>{`@keyframes fall { to { transform: translateY(105vh) rotate(720deg); opacity:0 } }`}</style>
     </div>
   )
 }
 
-// ── LIVES DISPLAY ────────────────────────────────────────────────────────────
-function Lives({ count, max = 3 }) {
+// ── FEEDBACK BANNER ───────────────────────────────────────────────────────────
+function FeedbackBanner({ correct, feedbackText, onNext }) {
+  if (correct === null) return null
   return (
-    <div style={{ display: 'flex', gap: 4 }}>
-      {Array.from({ length: max }).map((_, i) => (
-        <span key={i} style={{ fontSize: 18, filter: i < count ? 'none' : 'grayscale(1)', opacity: i < count ? 1 : 0.3, transition: 'all .3s' }}>❤️</span>
-      ))}
-    </div>
-  )
-}
-
-// ── PROGRESS BAR ─────────────────────────────────────────────────────────────
-function ProgressBar({ current, total, color = 'var(--amber)' }) {
-  return (
-    <div style={{ height: 6, background: 'rgba(255,255,255,.08)', borderRadius: 100, overflow: 'hidden', flex: 1 }}>
-      <div style={{ height: '100%', background: color, borderRadius: 100, width: `${(current / total) * 100}%`, transition: 'width .4s ease' }} />
-    </div>
-  )
-}
-
-// ── FEEDBACK OVERLAY ─────────────────────────────────────────────────────────
-function FeedbackBanner({ state, text, onNext }) {
-  if (!state) return null
-  const isCorrect = state === 'correct'
-  return (
-    <div style={{
-      position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 50,
-      background: isCorrect ? '#1A3A1A' : '#3A1A1A',
-      borderTop: `3px solid ${isCorrect ? '#58E87A' : '#FF6B6B'}`,
-      padding: '20px 24px max(28px,calc(var(--sb)+20px))',
-      animation: 'slideUp .25s ease',
-    }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, maxWidth: 560, margin: '0 auto' }}>
+    <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 100, background: correct ? '#0D2A14' : '#2A0D0D', borderTop: `3px solid ${correct ? '#58E87A' : '#FF6B6B'}`, padding: '16px 20px max(24px,calc(var(--sb)+16px))' }}>
+      <div style={{ maxWidth: 520, margin: '0 auto', display: 'flex', gap: 14, alignItems: 'flex-start' }}>
         <div style={{ flex: 1 }}>
-          <p style={{ fontSize: 16, fontWeight: 700, color: isCorrect ? '#58E87A' : '#FF6B6B', marginBottom: 4 }}>
-            {isCorrect ? '✓ Correct!' : '✗ Not quite'}
+          <p style={{ fontSize: 16, fontWeight: 700, color: correct ? '#58E87A' : '#FF6B6B', marginBottom: 4 }}>
+            {correct ? '✓ Correct!' : '✗ Not quite'}
           </p>
-          {text && <p style={{ fontSize: 13, color: 'rgba(240,232,214,.8)', lineHeight: 1.6 }}>{text}</p>}
+          <p style={{ fontSize: 13, color: 'rgba(240,232,214,.85)', lineHeight: 1.6 }}>{feedbackText}</p>
         </div>
-        <button onClick={onNext} style={{
-          background: isCorrect ? '#58E87A' : '#FF6B6B', color: '#0A0812',
-          border: 'none', borderRadius: 12, padding: '12px 22px',
-          fontSize: 14, fontWeight: 700, cursor: 'pointer', flexShrink: 0,
-        }}>
-          Continue →
+        <button onClick={onNext} style={{ background: correct ? '#58E87A' : '#FF6B6B', color: '#0A0812', border: 'none', borderRadius: 10, padding: '12px 20px', fontSize: 14, fontWeight: 700, cursor: 'pointer', flexShrink: 0, marginTop: 2 }}>
+          Next →
         </button>
       </div>
-      <style>{`@keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }`}</style>
     </div>
   )
 }
 
-// ════════════════════════════════════════════════════════════════════════════
-// GAME COMPONENTS
-// ════════════════════════════════════════════════════════════════════════════
-
-// ── MULTIPLE CHOICE QUIZ ─────────────────────────────────────────────────────
-function QuizGame({ data, levelMeta, onComplete, onWrongAnswer }) {
-  const questions = data.questions || []
-  const [qIdx, setQIdx] = useState(0)
-  const [selected, setSelected] = useState(null)
-  const [feedback, setFeedback] = useState(null)
-  const [feedbackText, setFeedbackText] = useState('')
-  const [score, setScore] = useState(0)
-
-  const q = questions[qIdx]
-  if (!q) return null
-
-  function choose(idx) {
-    if (selected !== null) return
-    setSelected(idx)
-    const correct = idx === q.correct
-    setFeedback(correct ? 'correct' : 'wrong')
-    setFeedbackText(q.explanation || q.fact || q.revelation || q.wisdom || '')
-    if (correct) setScore(s => s + 1)
-    else onWrongAnswer()
+// ── SWIPE MECHANIC ────────────────────────────────────────────────────────────
+function SwipeGame({ q, onAnswer }) {
+  const [chosen, setChosen] = useState(null)
+  function choose(dir) {
+    if (chosen) return
+    setChosen(dir)
+    onAnswer(dir === q.correct_answer, q.feedback_text)
   }
-
-  function next() {
-    setSelected(null); setFeedback(null); setFeedbackText('')
-    if (qIdx + 1 >= questions.length) {
-      onComplete(score + (selected === q.correct ? 1 : 0), questions.length)
-    } else {
-      setQIdx(i => i + 1)
-    }
-  }
-
-  const optColors = ['#5BC8FF', '#58E87A', '#FF85C0', '#FFD060']
-
   return (
-    <>
-      {data.mantra && qIdx === 0 && (
-        <div style={{ background: 'rgba(232,146,74,.08)', border: '1px solid rgba(232,146,74,.2)', borderRadius: 12, padding: '12px 16px', marginBottom: 20 }}>
-          <p style={{ fontSize: 9, letterSpacing: 3, color: 'var(--amber)', fontFamily: "'DM Sans',sans-serif" }}>YOUR MANTRA</p>
-          <p style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 18, fontStyle: 'italic', color: 'var(--sand)', marginTop: 4 }}>"{data.mantra}"</p>
-        </div>
+    <div>
+      <p style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 22, color: 'var(--sand)', lineHeight: 1.6, marginBottom: 32, fontStyle: 'italic' }}>
+        "{q.prompt}"
+      </p>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <button onClick={() => choose('left')} disabled={!!chosen} style={{
+          padding: '20px 12px', borderRadius: 14, fontSize: 16, fontWeight: 700, cursor: chosen ? 'default' : 'pointer',
+          background: chosen === 'left' ? (q.correct_answer === 'left' ? 'rgba(88,232,122,.2)' : 'rgba(255,107,107,.15)') : 'rgba(255,107,107,.08)',
+          border: `2px solid ${chosen === 'left' ? (q.correct_answer === 'left' ? '#58E87A' : '#FF6B6B') : 'rgba(255,107,107,.3)'}`,
+          color: chosen === 'left' ? (q.correct_answer === 'left' ? '#58E87A' : '#FF6B6B') : '#FF8A8A',
+          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
+        }}>
+          <span style={{ fontSize: 32 }}>👎</span>
+          <span>Bad idea</span>
+          {chosen === 'left' && q.correct_answer === 'right' && <span style={{ fontSize: 11 }}>✗ Wrong</span>}
+          {chosen === 'left' && q.correct_answer === 'left' && <span style={{ fontSize: 11 }}>✓ Right</span>}
+        </button>
+        <button onClick={() => choose('right')} disabled={!!chosen} style={{
+          padding: '20px 12px', borderRadius: 14, fontSize: 16, fontWeight: 700, cursor: chosen ? 'default' : 'pointer',
+          background: chosen === 'right' ? (q.correct_answer === 'right' ? 'rgba(88,232,122,.2)' : 'rgba(255,107,107,.15)') : 'rgba(88,232,122,.08)',
+          border: `2px solid ${chosen === 'right' ? (q.correct_answer === 'right' ? '#58E87A' : '#FF6B6B') : 'rgba(88,232,122,.3)'}`,
+          color: chosen === 'right' ? (q.correct_answer === 'right' ? '#58E87A' : '#FF6B6B') : '#58E87A',
+          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
+        }}>
+          <span style={{ fontSize: 32 }}>👍</span>
+          <span>Good idea</span>
+          {chosen === 'right' && q.correct_answer === 'left' && <span style={{ fontSize: 11 }}>✗ Wrong</span>}
+          {chosen === 'right' && q.correct_answer === 'right' && <span style={{ fontSize: 11 }}>✓ Right</span>}
+        </button>
+      </div>
+      {/* Show correct answer highlighted when wrong */}
+      {chosen && chosen !== q.correct_answer && (
+        <p style={{ textAlign: 'center', marginTop: 12, fontSize: 13, color: '#58E87A' }}>
+          ✓ The correct answer was: {q.correct_answer === 'right' ? 'Good idea 👍' : 'Bad idea 👎'}
+        </p>
       )}
-      <p style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 'clamp(18px,5vw,24px)', color: 'var(--sand)', lineHeight: 1.5, marginBottom: 28, fontWeight: 600 }}>{q.q}</p>
+    </div>
+  )
+}
+
+// ── SCENARIO (MULTIPLE CHOICE) ────────────────────────────────────────────────
+function ScenarioGame({ q, onAnswer }) {
+  const [selected, setSelected] = useState(null)
+  const options = Array.isArray(q.options) ? q.options :
+    q.correct_answer && q.wrong_options ? [q.correct_answer, ...q.wrong_options] :
+    typeof q.correct_answer === 'string' ? [q.correct_answer, 'Option B', 'Option C'] : []
+
+  function choose(opt) {
+    if (selected) return
+    setSelected(opt)
+    onAnswer(opt === q.correct_answer, q.feedback_text)
+  }
+
+  const colors = ['#5BC8FF', '#58E87A', '#FF85C0']
+  return (
+    <div>
+      <p style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 22, color: 'var(--sand)', lineHeight: 1.5, marginBottom: 28 }}>{q.prompt}</p>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        {q.options?.map((opt, i) => {
+        {options.map((opt, i) => {
+          const isCorrect = opt === q.correct_answer
           let bg = 'var(--ink2)', border = 'rgba(240,235,224,.1)', color = 'var(--sand)'
-          if (selected !== null) {
-            if (i === q.correct) { bg = 'rgba(88,232,122,.15)'; border = '#58E87A'; color = '#58E87A' }
-            else if (i === selected && selected !== q.correct) { bg = 'rgba(255,107,107,.12)'; border = '#FF6B6B'; color = '#FF6B6B' }
+          if (selected) {
+            if (isCorrect) { bg = 'rgba(88,232,122,.15)'; border = '#58E87A'; color = '#58E87A' }
+            else if (opt === selected) { bg = 'rgba(255,107,107,.12)'; border = '#FF6B6B'; color = '#FF6B6B' }
           }
           return (
-            <button key={i} onClick={() => choose(i)} disabled={selected !== null} style={{
+            <button key={i} onClick={() => choose(opt)} disabled={!!selected} style={{
               background: bg, border: `2px solid ${border}`, borderRadius: 14,
-              padding: '16px 18px', color, fontSize: 15, fontWeight: 500,
-              cursor: selected !== null ? 'default' : 'pointer', textAlign: 'left',
-              transition: 'all .2s', fontFamily: "'DM Sans',sans-serif",
-              display: 'flex', alignItems: 'center', gap: 12,
+              padding: '15px 18px', color, fontSize: 14, fontWeight: 500,
+              cursor: selected ? 'default' : 'pointer', textAlign: 'left',
+              display: 'flex', alignItems: 'center', gap: 12, transition: 'all .2s',
             }}>
-              <span style={{ width: 28, height: 28, borderRadius: '50%', background: selected === null ? `${optColors[i]}22` : 'transparent', border: `1.5px solid ${selected === null ? optColors[i] : border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: selected === null ? optColors[i] : color, flexShrink: 0 }}>
+              <span style={{ width: 28, height: 28, borderRadius: '50%', background: selected ? 'transparent' : `${colors[i % 3]}22`, border: `1.5px solid ${selected ? border : colors[i % 3]}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: selected ? color : colors[i % 3], flexShrink: 0 }}>
                 {String.fromCharCode(65 + i)}
               </span>
               {opt}
@@ -152,592 +132,486 @@ function QuizGame({ data, levelMeta, onComplete, onWrongAnswer }) {
           )
         })}
       </div>
-      <FeedbackBanner state={feedback} text={feedbackText} onNext={next} />
-    </>
+    </div>
   )
 }
 
-// ── TRUE / FALSE SPEED ROUND ──────────────────────────────────────────────────
-function TrueFalseGame({ data, onComplete, onWrongAnswer }) {
-  const statements = data.statements || []
-  const [idx, setIdx] = useState(0)
+// ── SPEED TRUE/FALSE ──────────────────────────────────────────────────────────
+function SpeedTFGame({ q, onAnswer }) {
   const [answered, setAnswered] = useState(null)
-  const [feedback, setFeedback] = useState(null)
-  const [feedbackText, setFeedbackText] = useState('')
-  const [score, setScore] = useState(0)
-  const [timeLeft, setTimeLeft] = useState(8)
+  const [timeLeft, setTimeLeft] = useState(10)
   const timerRef = useRef(null)
 
-  const s = statements[idx]
-
   useEffect(() => {
-    if (answered !== null) return
-    setTimeLeft(8)
     timerRef.current = setInterval(() => {
       setTimeLeft(t => {
-        if (t <= 1) {
-          clearInterval(timerRef.current)
-          handleAnswer(null) // time's up
-          return 0
-        }
+        if (t <= 1) { clearInterval(timerRef.current); handleAnswer(null); return 0 }
         return t - 1
       })
     }, 1000)
     return () => clearInterval(timerRef.current)
-  }, [idx, answered])
+  }, [])
 
-  function handleAnswer(ans) {
-    clearInterval(timerRef.current)
+  function handleAnswer(val) {
     if (answered !== null) return
-    setAnswered(ans)
-    const correct = ans === s.answer
-    setFeedback(correct ? 'correct' : 'wrong')
-    setFeedbackText(s.explanation)
-    if (correct) setScore(sc => sc + 1)
-    else onWrongAnswer()
+    clearInterval(timerRef.current)
+    setAnswered(val)
+    const correct_bool = q.correct_answer === 'true' || q.correct_answer === true
+    const isCorrect = val === correct_bool
+    onAnswer(val === null ? false : isCorrect, q.feedback_text)
   }
 
-  function next() {
-    setAnswered(null); setFeedback(null); setFeedbackText('')
-    if (idx + 1 >= statements.length) onComplete(score, statements.length)
-    else setIdx(i => i + 1)
-  }
-
-  if (!s) return null
-  const urgency = timeLeft <= 3
+  const urgent = timeLeft <= 3
+  const correct_bool = q.correct_answer === 'true' || q.correct_answer === true
 
   return (
-    <>
+    <div>
       <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 24 }}>
-        <div style={{ width: 56, height: 56, borderRadius: '50%', border: `3px solid ${urgency ? '#FF6B6B' : 'var(--amber)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, fontWeight: 700, color: urgency ? '#FF6B6B' : 'var(--amber)', transition: 'color .3s, border-color .3s', animation: urgency ? 'pulse .5s ease-in-out infinite' : 'none' }}>
+        <div style={{ width: 56, height: 56, borderRadius: '50%', border: `3px solid ${urgent ? '#FF6B6B' : 'var(--amber)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, fontWeight: 700, color: urgent ? '#FF6B6B' : 'var(--amber)', transition: 'all .3s' }}>
           {timeLeft}
         </div>
       </div>
-      <div style={{ textAlign: 'center', marginBottom: 8 }}>
-        <span style={{ fontSize: 36 }}>{s.emoji}</span>
-      </div>
-      <p style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 'clamp(18px,5vw,24px)', color: 'var(--sand)', lineHeight: 1.5, marginBottom: 36, textAlign: 'center', fontWeight: 600 }}>
-        {s.statement}
+      <p style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 'clamp(18px,5vw,24px)', color: 'var(--sand)', lineHeight: 1.6, marginBottom: 36, textAlign: 'center', fontWeight: 600 }}>
+        {q.prompt}
       </p>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-        {[{ label: '✓ True', val: true, color: '#58E87A' }, { label: '✗ False', val: false, color: '#FF6B6B' }].map(btn => {
+        {[{ label: '✓ True', val: true }, { label: '✗ False', val: false }].map(btn => {
           let bg = btn.val ? 'rgba(88,232,122,.08)' : 'rgba(255,107,107,.08)'
           let border = btn.val ? 'rgba(88,232,122,.3)' : 'rgba(255,107,107,.3)'
+          let color = btn.val ? '#58E87A' : '#FF6B6B'
           if (answered !== null) {
-            if (btn.val === s.answer) { bg = btn.val ? 'rgba(88,232,122,.2)' : 'rgba(255,107,107,.2)'; border = btn.color }
-            else if (btn.val === answered) { bg = 'rgba(255,107,107,.1)'; border = '#FF6B6B' }
+            if (btn.val === correct_bool) { bg = btn.val ? 'rgba(88,232,122,.2)' : 'rgba(255,107,107,.15)'; border = color }
+            else if (btn.val === answered) { bg = 'rgba(255,107,107,.1)'; border = '#FF6B6B'; color = '#FF6B6B' }
           }
           return (
-            <button key={String(btn.val)} onClick={() => handleAnswer(btn.val)} disabled={answered !== null} style={{
-              background: bg, border: `2px solid ${border}`, borderRadius: 16,
-              padding: '24px 0', fontSize: 20, fontWeight: 700, color: btn.color,
-              cursor: answered !== null ? 'default' : 'pointer', transition: 'all .2s',
-            }}>
+            <button key={String(btn.val)} onClick={() => handleAnswer(btn.val)} disabled={answered !== null} style={{ background: bg, border: `2px solid ${border}`, borderRadius: 16, padding: '24px 0', fontSize: 20, fontWeight: 700, color, cursor: answered !== null ? 'default' : 'pointer', transition: 'all .2s' }}>
               {btn.label}
             </button>
           )
         })}
       </div>
-      <style>{`@keyframes pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.1)} }`}</style>
-      <FeedbackBanner state={feedback} text={feedbackText} onNext={next} />
-    </>
+      {answered === null && timeLeft === 0 && (
+        <p style={{ textAlign: 'center', marginTop: 12, color: '#FF6B6B', fontSize: 13 }}>⏱ Time's up! The answer was: {correct_bool ? 'True' : 'False'}</p>
+      )}
+    </div>
   )
 }
 
-// ── MATCH PAIRS ───────────────────────────────────────────────────────────────
-function MatchGame({ data, onComplete, onWrongAnswer }) {
-  const pairs = data.pairs || []
-  const [selected, setSelected] = useState(null) // { side: 'left'|'right', idx }
-  const [matched, setMatched] = useState([]) // indices of matched pairs
-  const [wrongPair, setWrongPair] = useState(null)
-  const [revealFact, setRevealFact] = useState(null)
+// ── MATCHING ──────────────────────────────────────────────────────────────────
+function MatchingGame({ q, onAnswer }) {
+  const pairs = q.correct_answer && typeof q.correct_answer === 'object'
+    ? Object.entries(q.correct_answer) : []
+  const [selected, setSelected] = useState(null) // { side: 'left'|'right', key }
+  const [matched, setMatched] = useState([])
+  const [wrongFlash, setWrongFlash] = useState(null)
+  const [rightOrder] = useState(() => [...pairs].sort(() => Math.random() - 0.5))
 
-  // Shuffle right side
-  const [rightOrder] = useState(() => pairs.map((_, i) => i).sort(() => Math.random() - 0.5))
-
-  function tap(side, idx) {
-    if (matched.includes(idx)) return
-    if (wrongPair) return
-
-    if (!selected) {
-      setSelected({ side, idx })
-      return
-    }
-
-    // Get the pair index for each side
-    const leftIdx = side === 'left' ? idx : selected.idx
-    const rightIdx = side === 'right' ? idx : selected.idx
-
-    if (selected.side === side) { setSelected({ side, idx }); return }
-
-    const rightPairIdx = rightOrder[rightIdx]
-    if (leftIdx === rightPairIdx) {
-      // Match!
-      setMatched(m => [...m, leftIdx])
+  function tap(side, key) {
+    if (matched.some(m => m[0] === key || m[1] === key)) return
+    if (!selected) { setSelected({ side, key }); return }
+    if (selected.side === side) { setSelected({ side, key }); return }
+    const leftKey = side === 'left' ? key : selected.key
+    const rightKey = side === 'right' ? key : selected.key
+    if (pairs.some(([l, r]) => l === leftKey && r === rightKey)) {
+      const newMatched = [...matched, [leftKey, rightKey]]
+      setMatched(newMatched)
       setSelected(null)
-      setRevealFact(pairs[leftIdx].fact)
-      setTimeout(() => setRevealFact(null), 2500)
-      if (matched.length + 1 >= pairs.length) {
-        setTimeout(() => onComplete(pairs.length, pairs.length), 2800)
+      if (newMatched.length === pairs.length) {
+        setTimeout(() => onAnswer(true, q.feedback_text), 600)
       }
     } else {
-      // Wrong
-      setWrongPair({ left: leftIdx, right: rightIdx })
-      onWrongAnswer()
-      setTimeout(() => { setWrongPair(null); setSelected(null) }, 900)
+      setWrongFlash({ left: leftKey, right: rightKey })
+      setTimeout(() => { setWrongFlash(null); setSelected(null) }, 700)
+      onAnswer(false, q.feedback_text, true) // true = partial wrong, don't end
     }
   }
 
-  const cellStyle = (isMatched, isSelected, isWrong) => ({
-    background: isMatched ? 'rgba(88,232,122,.15)' : isWrong ? 'rgba(255,107,107,.15)' : isSelected ? 'rgba(232,146,74,.2)' : 'var(--ink2)',
-    border: `2px solid ${isMatched ? '#58E87A' : isWrong ? '#FF6B6B' : isSelected ? 'var(--amber)' : 'rgba(240,235,224,.08)'}`,
-    borderRadius: 12, padding: '12px 10px', cursor: isMatched ? 'default' : 'pointer',
-    fontSize: 13, color: isMatched ? '#58E87A' : 'var(--sand)', lineHeight: 1.4,
-    transition: 'all .2s', textAlign: 'center', minHeight: 56,
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-    fontFamily: "'DM Sans',sans-serif", fontWeight: isMatched ? 600 : 400,
-  })
+  const isMatched = key => matched.some(m => m[0] === key || m[1] === key)
+  const isSelected = (side, key) => selected?.side === side && selected?.key === key
+  const isWrong = (side, key) => wrongFlash && (side === 'left' ? wrongFlash.left === key : wrongFlash.right === key)
+
+  function cellStyle(matched, selected, wrong) {
+    return {
+      background: matched ? 'rgba(88,232,122,.15)' : wrong ? 'rgba(255,107,107,.15)' : selected ? 'rgba(232,146,74,.2)' : 'var(--ink2)',
+      border: `2px solid ${matched ? '#58E87A' : wrong ? '#FF6B6B' : selected ? 'var(--amber)' : 'rgba(240,235,224,.08)'}`,
+      borderRadius: 12, padding: '12px 10px', cursor: matched ? 'default' : 'pointer',
+      fontSize: 13, color: matched ? '#58E87A' : 'var(--sand)', lineHeight: 1.4,
+      transition: 'all .2s', textAlign: 'center', minHeight: 52,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+    }
+  }
 
   return (
-    <>
-      {data.intro && <p style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 16, fontStyle: 'italic', color: 'var(--mist)', marginBottom: 20, lineHeight: 1.6 }}>{data.intro}</p>}
-      <p style={{ fontSize: 13, color: 'var(--mist)', marginBottom: 16, textAlign: 'center' }}>Match each area to its vibe</p>
+    <div>
+      <p style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 20, color: 'var(--sand)', marginBottom: 8 }}>{q.prompt}</p>
+      <p style={{ fontSize: 12, color: 'var(--mist)', marginBottom: 18 }}>Match each item on the left to the right</p>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-        {pairs.map((pair, i) => (
+        {pairs.map(([left, right], i) => (
           <>
-            <div key={`l${i}`} onClick={() => tap('left', i)} style={cellStyle(matched.includes(i), selected?.side === 'left' && selected.idx === i, wrongPair?.left === i)}>
-              {pair.area}
-            </div>
-            <div key={`r${i}`} onClick={() => tap('right', i)} style={cellStyle(matched.includes(rightOrder[i]), selected?.side === 'right' && selected.idx === i, wrongPair?.right === i)}>
-              {pairs[rightOrder[i]].vibe}
-            </div>
+            <div key={`l${i}`} onClick={() => tap('left', left)} style={cellStyle(isMatched(left), isSelected('left', left), isWrong('left', left))}>{left}</div>
+            <div key={`r${i}`} onClick={() => tap('right', rightOrder[i][1])} style={cellStyle(isMatched(rightOrder[i][1]), isSelected('right', rightOrder[i][1]), isWrong('right', rightOrder[i][1]))}>{rightOrder[i][1]}</div>
           </>
         ))}
       </div>
-      {revealFact && (
-        <div style={{ marginTop: 16, background: 'rgba(88,232,122,.08)', border: '1px solid rgba(88,232,122,.25)', borderRadius: 12, padding: '12px 16px', animation: 'fadeIn .3s ease' }}>
-          <p style={{ fontSize: 13, color: '#58E87A', lineHeight: 1.6 }}>✓ {revealFact}</p>
-        </div>
-      )}
-      <p style={{ textAlign: 'center', marginTop: 16, fontSize: 13, color: 'var(--mist)' }}>{matched.length} / {pairs.length} matched</p>
-    </>
+      <p style={{ textAlign: 'center', marginTop: 12, fontSize: 12, color: 'var(--mist)' }}>{matched.length}/{pairs.length} matched</p>
+    </div>
   )
 }
 
-// ── FLASHCARD DRILL ───────────────────────────────────────────────────────────
-function FlashcardGame({ data, onComplete, onWrongAnswer }) {
-  const cards = data.cards || []
-  const [idx, setIdx] = useState(0)
-  const [flipped, setFlipped] = useState(false)
-  const [done, setDone] = useState([]) // 'got' or 'retry'
-  const [queue, setQueue] = useState(() => cards.map((_, i) => i))
+// ── SEQUENCE ──────────────────────────────────────────────────────────────────
+function SequenceGame({ q, onAnswer }) {
+  const items = Array.isArray(q.correct_answer) ? q.correct_answer : []
+  const [order, setOrder] = useState(() => [...items].sort(() => Math.random() - 0.5))
+  const [submitted, setSubmitted] = useState(false)
+  const [dragIdx, setDragIdx] = useState(null)
 
-  const cardIdx = queue[idx]
-  const card = cards[cardIdx]
-
-  if (!card) {
-    const gotCount = done.filter(d => d === 'got').length
-    setTimeout(() => onComplete(gotCount, cards.length), 100)
-    return null
+  function moveUp(i) {
+    if (i === 0) return
+    const arr = [...order]; [arr[i - 1], arr[i]] = [arr[i], arr[i - 1]]; setOrder(arr)
+  }
+  function moveDown(i) {
+    if (i === order.length - 1) return
+    const arr = [...order]; [arr[i], arr[i + 1]] = [arr[i + 1], arr[i]]; setOrder(arr)
   }
 
-  function handleResponse(response) {
-    const newDone = [...done, response]
-    setDone(newDone)
-    if (response === 'retry') onWrongAnswer()
-    setFlipped(false)
-    // If retry, add card back to end of queue
-    if (response === 'retry') {
-      setQueue(q => [...q, cardIdx])
-    }
-    setTimeout(() => setIdx(i => i + 1), 200)
+  function submit() {
+    setSubmitted(true)
+    const correct = order.every((item, i) => item === items[i])
+    onAnswer(correct, q.feedback_text + (correct ? '' : ` Correct order: ${items.join(' → ')}`))
   }
-
-  const remaining = queue.length - idx
 
   return (
-    <>
-      {data.language && (
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 20 }}>
-          <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--amber)' }}>{data.language}</span>
-          {data.script && <span style={{ fontSize: 11, color: 'var(--mist)', background: 'var(--ink2)', padding: '2px 10px', borderRadius: 100 }}>{data.script}</span>}
-          {data.emergencyNumbers && (
-            <div style={{ marginLeft: 'auto', display: 'flex', gap: 12 }}>
-              {Object.entries(data.emergencyNumbers).map(([k, v]) => (
-                <div key={k} style={{ textAlign: 'center' }}>
-                  <p style={{ fontSize: 8, color: 'rgba(255,100,100,.7)', textTransform: 'uppercase' }}>{k}</p>
-                  <p style={{ fontSize: 14, fontWeight: 700, color: '#FF6B6B' }}>{v}</p>
-                </div>
-              ))}
+    <div>
+      <p style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 20, color: 'var(--sand)', marginBottom: 8 }}>{q.prompt}</p>
+      <p style={{ fontSize: 12, color: 'var(--mist)', marginBottom: 18 }}>Put these in the correct order — use ↑↓ to reorder</p>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 20 }}>
+        {order.map((item, i) => (
+          <div key={item} style={{ display: 'flex', gap: 10, alignItems: 'center', background: 'var(--ink2)', border: '1px solid rgba(240,235,224,.08)', borderRadius: 12, padding: '12px 14px' }}>
+            <span style={{ width: 22, height: 22, borderRadius: '50%', background: 'rgba(232,146,74,.2)', color: 'var(--amber)', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{i + 1}</span>
+            <span style={{ flex: 1, fontSize: 14, color: 'var(--sand)' }}>{item}</span>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <button onClick={() => moveUp(i)} disabled={i === 0} style={{ background: 'none', border: 'none', color: i === 0 ? 'rgba(255,255,255,.15)' : 'var(--amber)', fontSize: 14, cursor: i === 0 ? 'default' : 'pointer', padding: '0 4px', lineHeight: 1 }}>↑</button>
+              <button onClick={() => moveDown(i)} disabled={i === order.length - 1} style={{ background: 'none', border: 'none', color: i === order.length - 1 ? 'rgba(255,255,255,.15)' : 'var(--amber)', fontSize: 14, cursor: i === order.length - 1 ? 'default' : 'pointer', padding: '0 4px', lineHeight: 1 }}>↓</button>
             </div>
-          )}
-        </div>
-      )}
-
-      <p style={{ fontSize: 11, color: 'var(--mist)', textAlign: 'center', marginBottom: 16 }}>{remaining} cards remaining</p>
-
-      {/* The card */}
-      <div onClick={() => !flipped && setFlipped(true)} style={{
-        background: flipped ? 'linear-gradient(135deg,rgba(232,146,74,.15),rgba(123,108,176,.1))' : 'var(--ink2)',
-        border: `2px solid ${flipped ? 'rgba(232,146,74,.4)' : 'rgba(240,235,224,.08)'}`,
-        borderRadius: 20, padding: '32px 24px', textAlign: 'center',
-        cursor: flipped ? 'default' : 'pointer', transition: 'all .3s',
-        minHeight: 200, display: 'flex', flexDirection: 'column',
-        alignItems: 'center', justifyContent: 'center', gap: 12, marginBottom: 20,
-      }}>
-        <span style={{ fontSize: 32 }}>{card.emoji}</span>
-        {!flipped ? (
-          <>
-            <p style={{ fontSize: 9, letterSpacing: 3, textTransform: 'uppercase', color: 'var(--amber)' }}>{card.category}</p>
-            <p style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 26, fontWeight: 600, color: 'var(--sand)' }}>{card.front}</p>
-            <p style={{ fontSize: 12, color: 'var(--mist)' }}>Tap to reveal</p>
-          </>
-        ) : (
-          <>
-            <p style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 28, fontWeight: 700, color: 'var(--amber)' }}>{card.back}</p>
-            <p style={{ fontSize: 16, color: 'rgba(240,232,214,.7)', fontStyle: 'italic' }}>say: {card.pronunciation}</p>
-            {card.memoryHook && (
-              <p style={{ fontSize: 12, color: 'var(--mist)', background: 'rgba(255,255,255,.04)', borderRadius: 8, padding: '8px 14px', marginTop: 4 }}>💡 {card.memoryHook}</p>
-            )}
-          </>
-        )}
+          </div>
+        ))}
       </div>
-
-      {flipped && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-          <button onClick={() => handleResponse('retry')} style={{ background: 'rgba(255,107,107,.1)', border: '2px solid rgba(255,107,107,.3)', borderRadius: 14, padding: '16px 0', fontSize: 15, fontWeight: 700, color: '#FF6B6B', cursor: 'pointer' }}>
-            ✗ Need practice
-          </button>
-          <button onClick={() => handleResponse('got')} style={{ background: 'rgba(88,232,122,.12)', border: '2px solid rgba(88,232,122,.35)', borderRadius: 14, padding: '16px 0', fontSize: 15, fontWeight: 700, color: '#58E87A', cursor: 'pointer' }}>
-            ✓ Got it!
-          </button>
-        </div>
+      {!submitted && (
+        <button onClick={submit} className="btn-primary" style={{ width: '100%', padding: '14px 0' }}>
+          Submit Order →
+        </button>
       )}
-    </>
+    </div>
   )
 }
 
-// ── FILL IN THE BLANK ─────────────────────────────────────────────────────────
-function FillBlankGame({ data, onComplete, onWrongAnswer }) {
-  const questions = data.questions || []
-  const [idx, setIdx] = useState(0)
-  const [selected, setSelected] = useState(null)
-  const [feedback, setFeedback] = useState(null)
-  const [score, setScore] = useState(0)
+// ── SLIDER ────────────────────────────────────────────────────────────────────
+function SliderGame({ q, onAnswer }) {
+  const [submitted, setSubmitted] = useState(false)
+  // Parse target value from correct_answer
+  const raw = String(q.correct_answer || '50')
+  const numMatch = raw.match(/[\d.]+/)
+  const target = numMatch ? parseFloat(numMatch[0]) : 50
+  const isTime = raw.includes(':') || raw.includes('AM') || raw.includes('PM')
+  const isCurrency = raw.includes('€') || raw.includes('$') || raw.includes('USD')
 
-  const q = questions[idx]
-  if (!q) return null
+  // Set slider range based on context
+  let min = 0, max = 100, step = 1, unit = ''
+  if (isTime) { min = 0; max = 23; step = 0.5; unit = 'h' }
+  else if (isCurrency) { min = 0; max = target * 3 || 50; step = 0.1; unit = raw.match(/[€$£]/)?.[0] || '' }
+  else if (raw.includes('%')) { min = 0; max = 100; step = 5; unit = '%' }
+  else { min = Math.max(0, target * 0.2); max = target * 2.5 || 100; step = target > 100 ? 10 : 1 }
 
-  const parts = q.sentence.split('___')
+  const [value, setValue] = useState((min + max) / 2)
 
-  function choose(optIdx) {
-    if (selected !== null) return
-    setSelected(optIdx)
-    const correct = optIdx === q.correct
-    setFeedback(correct ? 'correct' : 'wrong')
-    if (correct) setScore(s => s + 1)
-    else onWrongAnswer()
+  function submit() {
+    setSubmitted(true)
+    const tolerance = (max - min) * 0.15
+    const correct = Math.abs(value - target) <= tolerance
+    onAnswer(correct, q.feedback_text + ` The answer is ${q.correct_answer}.`)
   }
 
-  function next() {
-    setSelected(null); setFeedback(null)
-    if (idx + 1 >= questions.length) onComplete(score + (selected === q.correct ? 1 : 0), questions.length)
-    else setIdx(i => i + 1)
+  const formatVal = (v) => {
+    if (isTime) {
+      const h = Math.floor(v); const m = (v % 1) * 60
+      const period = h < 12 ? 'AM' : 'PM'
+      return `${h % 12 || 12}:${m === 0 ? '00' : '30'} ${period}`
+    }
+    return unit + v.toFixed(unit === '%' ? 0 : 1)
   }
-
-  if (data.dish && idx === 0) {
-    // Recipe intro
-  }
-
-  // Shuffle options display order (but track correct)
-  const shuffled = useState(() => {
-    const opts = q.options.map((o, i) => ({ text: o, originalIdx: i }))
-    return opts.sort(() => Math.random() - 0.5)
-  })[0]
 
   return (
-    <>
-      {data.intro && idx === 0 && <p style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 15, fontStyle: 'italic', color: 'var(--mist)', marginBottom: 20, lineHeight: 1.6 }}>{data.intro}</p>}
-      {data.dish && idx === 0 && (
-        <div style={{ textAlign: 'center', marginBottom: 20 }}>
-          <span style={{ fontSize: 48 }}>{data.emoji}</span>
-          <p style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 20, fontWeight: 700, color: 'var(--amber)', marginTop: 6 }}>{data.dish}</p>
-          {data.story && <p style={{ fontSize: 13, color: 'var(--mist)', marginTop: 4, fontStyle: 'italic' }}>{data.story}</p>}
+    <div>
+      <p style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 20, color: 'var(--sand)', lineHeight: 1.5, marginBottom: 32 }}>{q.prompt}</p>
+      <div style={{ textAlign: 'center', marginBottom: 20 }}>
+        <p style={{ fontSize: 36, fontWeight: 700, color: 'var(--amber)', fontFamily: "'Cormorant Garamond',serif" }}>{formatVal(value)}</p>
+      </div>
+      <input type="range" min={min} max={max} step={step} value={value}
+        onChange={e => setValue(parseFloat(e.target.value))}
+        disabled={submitted}
+        style={{ width: '100%', marginBottom: 24, accentColor: 'var(--amber)' }} />
+      {!submitted && (
+        <button onClick={submit} className="btn-primary" style={{ width: '100%', padding: '14px 0' }}>
+          Lock In My Answer →
+        </button>
+      )}
+      {submitted && (
+        <div style={{ background: 'var(--ink2)', borderRadius: 12, padding: 16, textAlign: 'center' }}>
+          <p style={{ color: 'var(--mist)', fontSize: 13 }}>Correct answer: <span style={{ color: 'var(--amber)', fontWeight: 700 }}>{q.correct_answer}</span></p>
         </div>
       )}
+    </div>
+  )
+}
 
-      {/* Sentence with blank */}
-      <div style={{ background: 'var(--ink2)', borderRadius: 16, padding: '24px 20px', marginBottom: 24, minHeight: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <p style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 'clamp(17px,4.5vw,22px)', color: 'var(--sand)', lineHeight: 1.7, textAlign: 'center' }}>
-          {parts[0]}
-          <span style={{
-            display: 'inline-block', borderBottom: `2px solid ${selected !== null ? '#58E87A' : 'var(--amber)'}`,
-            minWidth: 80, padding: '0 8px', color: selected !== null ? '#58E87A' : 'var(--amber)',
-            fontWeight: 700, textAlign: 'center',
-          }}>
-            {selected !== null ? q.options[q.correct] : '   ___   '}
-          </span>
-          {parts[1]}
-        </p>
-      </div>
+// ── VISUAL TAP ────────────────────────────────────────────────────────────────
+function VisualTapGame({ q, onAnswer }) {
+  // Generates tap options from context
+  const correct = String(q.correct_answer || '')
+  const [options] = useState(() => {
+    const wrongOptions = q.wrong_options || q.options ||
+      ['The wrong option', 'Another wrong option', 'Also incorrect']
+    const allOpts = [correct, ...wrongOptions.slice(0, 3)].sort(() => Math.random() - 0.5)
+    return allOpts
+  })
+  const [selected, setSelected] = useState(null)
 
-      {/* Options */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        {q.options.map((opt, i) => {
+  function tap(opt) {
+    if (selected) return
+    setSelected(opt)
+    onAnswer(opt === correct, q.feedback_text)
+  }
+
+  return (
+    <div>
+      <p style={{ fontSize: 11, letterSpacing: 2, textTransform: 'uppercase', color: 'var(--amber)', marginBottom: 12, fontFamily: "'DM Sans',sans-serif" }}>👆 TAP THE CORRECT ANSWER</p>
+      <p style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 20, color: 'var(--sand)', lineHeight: 1.5, marginBottom: 24 }}>{q.prompt}</p>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+        {options.map((opt, i) => {
+          const isCorrect = opt === correct
           let bg = 'var(--ink2)', border = 'rgba(240,235,224,.1)', color = 'var(--sand)'
-          if (selected !== null) {
-            if (i === q.correct) { bg = 'rgba(88,232,122,.15)'; border = '#58E87A'; color = '#58E87A' }
-            else if (i === selected) { bg = 'rgba(255,107,107,.1)'; border = '#FF6B6B'; color = '#FF6B6B' }
+          if (selected) {
+            if (isCorrect) { bg = 'rgba(88,232,122,.15)'; border = '#58E87A'; color = '#58E87A' }
+            else if (opt === selected) { bg = 'rgba(255,107,107,.12)'; border = '#FF6B6B'; color = '#FF6B6B' }
           }
           return (
-            <button key={i} onClick={() => choose(i)} disabled={selected !== null} style={{
-              background: bg, border: `2px solid ${border}`, borderRadius: 14,
-              padding: '14px 18px', color, fontSize: 15, cursor: selected !== null ? 'default' : 'pointer',
-              transition: 'all .2s', fontFamily: "'DM Sans',sans-serif", textAlign: 'left',
-            }}>
+            <button key={i} onClick={() => tap(opt)} disabled={!!selected} style={{ background: bg, border: `2px solid ${border}`, borderRadius: 14, padding: '18px 12px', color, fontSize: 14, fontWeight: 500, cursor: selected ? 'default' : 'pointer', textAlign: 'center', transition: 'all .2s', minHeight: 72, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               {opt}
             </button>
           )
         })}
       </div>
-
-      <FeedbackBanner state={feedback} text={q.tip} onNext={next} />
-    </>
+    </div>
   )
 }
 
 // ════════════════════════════════════════════════════════════════════════════
 // MAIN LEVEL PAGE
 // ════════════════════════════════════════════════════════════════════════════
-
 export default function LevelGame() {
   const router = useRouter()
-  const { n: levelStr, tripId } = router.query
-
-  const levelNum = parseInt(levelStr)
-  const meta = LEVEL_META[levelNum]
-  const phase = meta ? PHASES.find(p => p.id === meta.phase) : null
+  const { tripId, n } = router.query
+  const levelNum = parseInt(n)
 
   const [trip, setTrip] = useState(null)
-  const [gameData, setGameData] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [loadError, setLoadError] = useState('')
-
-  // Game state
+  const [questions, setQuestions] = useState([])
+  const [qIdx, setQIdx] = useState(0)
   const [lives, setLives] = useState(3)
-  const [gameOver, setGameOver] = useState(false)
+  const [score, setScore] = useState(0)
+  const [feedbackState, setFeedbackState] = useState(null) // { correct, text }
   const [completed, setCompleted] = useState(false)
-  const [finalScore, setFinalScore] = useState({ correct: 0, total: 0 })
-  const [xpEarned, setXpEarned] = useState(0)
+  const [gameOver, setGameOver] = useState(false)
   const [showConfetti, setShowConfetti] = useState(false)
+  const [xpEarned, setXpEarned] = useState(0)
   const [isPerfect, setIsPerfect] = useState(false)
+  const [wrongThisQ, setWrongThisQ] = useState(false) // track if current Q already counted
+
+  const meta = LEVEL_META[levelNum - 1]
 
   useEffect(() => {
-    if (!tripId || !levelNum) return
-    // Load trip
+    if (!tripId || !n) return
     const trips = JSON.parse(localStorage.getItem('ss_trips') || '[]')
     const t = trips.find(x => x.id === tripId)
     if (!t) { router.push('/planner'); return }
     setTrip(t)
 
-    // Check cache
-    const cached = JSON.parse(localStorage.getItem('ss_planner_' + tripId) || '{}')
-    if (cached[levelNum]?.gameData) {
-      setGameData(cached[levelNum].gameData)
-      setLoading(false)
-      return
+    const course = JSON.parse(localStorage.getItem('ss_course_' + tripId) || 'null')
+    const level = course?.levels?.find(l => l.level_number === levelNum)
+    if (!level?.questions?.length) { router.push('/planner/' + tripId); return }
+    setQuestions(level.questions)
+  }, [tripId, n])
+
+  function handleAnswer(correct, feedbackText, partial = false) {
+    if (feedbackState) return // already showing feedback
+
+    if (!correct && !wrongThisQ) {
+      setWrongThisQ(true)
+      const newLives = lives - 1
+      setLives(newLives)
+      if (newLives <= 0) {
+        setFeedbackState({ correct: false, text: feedbackText })
+        setTimeout(() => setGameOver(true), 1500)
+        return
+      }
     }
 
-    // Fetch from API
-    fetch('/api/planner', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        level: levelNum,
-        dest: t.dest,
-        country: t.country,
-        travelDate: new Date(t.travelDate).toLocaleDateString('en', { month: 'long', year: 'numeric' }),
-        homecity: t.homecity,
-        days: t.days,
-      }),
-    })
-      .then(r => r.json())
-      .then(res => {
-        if (res.data) {
-          setGameData(res.data)
-          // Cache it
-          const fresh = JSON.parse(localStorage.getItem('ss_planner_' + tripId) || '{}')
-          fresh[levelNum] = { ...fresh[levelNum], gameData: res.data }
-          localStorage.setItem('ss_planner_' + tripId, JSON.stringify(fresh))
-        } else {
-          setLoadError(res.error || 'Could not load level. Try again.')
-        }
-        setLoading(false)
-      })
-      .catch(() => { setLoadError('Connection error. Try again.'); setLoading(false) })
-  }, [tripId, levelNum])
+    if (correct) {
+      setScore(s => s + 1)
+      setWrongThisQ(false)
+    }
 
-  function handleWrongAnswer() {
-    const newLives = lives - 1
-    setLives(newLives)
-    if (newLives <= 0) {
-      setTimeout(() => setGameOver(true), 800)
+    if (!partial) {
+      setFeedbackState({ correct, text: feedbackText })
+    } else {
+      // Matching partial wrong — just show briefly
+      setFeedbackState({ correct: false, text: feedbackText })
+      setTimeout(() => setFeedbackState(null), 1000)
     }
   }
 
-  function handleComplete(correct, total) {
-    const perfect = correct === total && lives === 3
-    const xp = (correct / total) * meta.xp + (perfect ? 50 : 0)
-    setFinalScore({ correct, total })
-    setXpEarned(Math.round(xp))
+  function nextQuestion() {
+    setFeedbackState(null)
+    setWrongThisQ(false)
+    if (qIdx + 1 >= questions.length) {
+      finishLevel()
+    } else {
+      setQIdx(i => i + 1)
+    }
+  }
+
+  function finishLevel() {
+    const perfect = score + 1 === questions.length && lives === 3
+    const xp = Math.round(((score + 1) / questions.length) * (meta?.xp || 100) + (perfect ? 50 : 0))
+    setXpEarned(xp)
     setIsPerfect(perfect)
     setCompleted(true)
     setShowConfetti(true)
     setTimeout(() => setShowConfetti(false), 2000)
 
-    // Save progress
-    const cached = JSON.parse(localStorage.getItem('ss_planner_' + tripId) || '{}')
-    cached[levelNum] = {
-      ...cached[levelNum],
-      complete: true,
-      xpEarned: Math.round(xp),
-      perfect,
-      completedAt: Date.now(),
+    // Save completion
+    const course = JSON.parse(localStorage.getItem('ss_course_' + tripId) || 'null')
+    if (course) {
+      const lvl = course.levels.find(l => l.level_number === levelNum)
+      if (lvl) { lvl.complete = true; lvl.xpEarned = xp; lvl.bestScore = score + 1 }
+      localStorage.setItem('ss_course_' + tripId, JSON.stringify(course))
     }
-    localStorage.setItem('ss_planner_' + tripId, JSON.stringify(cached))
-
-    // Update total XP
-    const totalXP = parseInt(localStorage.getItem('ss_total_xp') || '0') + Math.round(xp)
-    localStorage.setItem('ss_total_xp', totalXP.toString())
-
-    // Update streak
+    // Update global XP + streak
+    const totalXP = parseInt(localStorage.getItem('ss_xp') || '0') + xp
+    localStorage.setItem('ss_xp', totalXP.toString())
     const today = new Date().toDateString()
-    const lastDay = localStorage.getItem('ss_streak_day')
-    if (lastDay !== today) {
-      const streak = lastDay === new Date(Date.now() - 86400000).toDateString()
-        ? parseInt(localStorage.getItem('ss_streak') || '0') + 1 : 1
+    if (localStorage.getItem('ss_streak_day') !== today) {
+      const prev = localStorage.getItem('ss_streak_day')
+      const yesterday = new Date(Date.now() - 86400000).toDateString()
+      const streak = prev === yesterday ? parseInt(localStorage.getItem('ss_streak') || '0') + 1 : 1
       localStorage.setItem('ss_streak', streak.toString())
       localStorage.setItem('ss_streak_day', today)
     }
   }
 
-  function retry() {
-    setLives(3); setGameOver(false); setCompleted(false)
-    setFinalScore({ correct: 0, total: 0 }); setXpEarned(0)
-  }
+  if (!meta || !questions.length) return <div style={{ background: 'var(--ink)', minHeight: '100vh' }} />
 
-  if (!meta) return <div style={{ background: 'var(--ink)', minHeight: '100vh' }} />
-
-  const phaseColor = phase?.color || 'var(--amber)'
-
-  // ── LOADING ──
-  if (loading) return (
-    <div style={{ background: 'var(--ink)', minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 20, padding: 24 }}>
-      <span style={{ fontSize: 52 }}>{meta.emoji}</span>
-      <div className="spinner" style={{ width: 32, height: 32, borderTopColor: phaseColor }} />
-      <p style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 20, color: 'var(--sand)', textAlign: 'center' }}>Building your {meta.title.toLowerCase()}…</p>
-      <p style={{ fontSize: 13, color: 'var(--mist)' }}>AI is researching {trip?.dest} for you</p>
-    </div>
-  )
-
-  // ── ERROR ──
-  if (loadError) return (
-    <div style={{ background: 'var(--ink)', minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, padding: 24 }}>
-      <p style={{ fontSize: 40 }}>⚠️</p>
-      <p style={{ fontSize: 16, color: 'var(--sand)' }}>{loadError}</p>
-      <button className="btn-primary" onClick={() => { setLoadError(''); setLoading(true); retry() }}>Try Again</button>
-      <button className="btn-back" onClick={() => router.push('/planner/' + tripId)}>← Back</button>
-    </div>
-  )
-
-  // ── GAME OVER ──
-  if (gameOver) return (
-    <div style={{ background: 'var(--ink)', minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 20, padding: 24, textAlign: 'center' }}>
-      <span style={{ fontSize: 60 }}>💔</span>
-      <h2 style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 28, color: 'var(--sand)' }}>Out of lives</h2>
-      <p style={{ fontSize: 14, color: 'var(--mist)', maxWidth: 280 }}>You ran out of hearts. Try again — you'll remember more this time.</p>
-      <button className="btn-primary" style={{ padding: '14px 32px' }} onClick={retry}>Try Again</button>
-      <button className="btn-back" onClick={() => router.push('/planner/' + tripId)}>← Back to Trip</button>
-    </div>
-  )
+  const q = questions[qIdx]
+  const mechanic = q?.mechanic
 
   // ── COMPLETION ──
   if (completed) return (
     <>
       <Confetti active={showConfetti} />
-      <div style={{ background: 'var(--ink)', minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 0, padding: 24, textAlign: 'center' }}>
+      <div style={{ background: 'var(--ink)', minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 0, padding: 32, textAlign: 'center' }}>
         <span style={{ fontSize: 72, marginBottom: 16 }}>{isPerfect ? '🏆' : '✅'}</span>
-        <h2 style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 32, color: 'var(--sand)', marginBottom: 8 }}>
-          {isPerfect ? 'Perfect!' : 'Level Complete!'}
+        <h2 style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 30, color: 'var(--sand)', marginBottom: 8 }}>
+          {isPerfect ? 'Perfect Level!' : 'Level Complete!'}
         </h2>
         <p style={{ fontSize: 15, color: 'var(--mist)', marginBottom: 32 }}>
-          {finalScore.correct} / {finalScore.total} correct · {lives} ❤️ remaining
+          {score + 1}/{questions.length} correct · {lives} ❤️ remaining
         </p>
-
-        {/* XP earned */}
-        <div style={{ background: 'linear-gradient(135deg,rgba(232,146,74,.2),rgba(232,146,74,.05))', border: '2px solid rgba(232,146,74,.4)', borderRadius: 20, padding: '24px 40px', marginBottom: 32 }}>
-          <p style={{ fontSize: 11, letterSpacing: 3, textTransform: 'uppercase', color: 'var(--amber)', marginBottom: 8, fontFamily: "'DM Sans',sans-serif" }}>XP EARNED</p>
+        <div style={{ background: 'linear-gradient(135deg,rgba(232,146,74,.2),rgba(232,146,74,.05))', border: '2px solid rgba(232,146,74,.4)', borderRadius: 20, padding: '24px 44px', marginBottom: 32 }}>
+          <p style={{ fontSize: 10, letterSpacing: 3, color: 'var(--amber)', marginBottom: 8 }}>XP EARNED</p>
           <p style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 52, fontWeight: 700, color: 'var(--amber)', lineHeight: 1 }}>+{xpEarned}</p>
           {isPerfect && <p style={{ fontSize: 12, color: 'var(--amber)', marginTop: 6 }}>+50 perfect bonus ⭐</p>}
         </div>
-
-        {/* Next level or back */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12, width: '100%', maxWidth: 320 }}>
-          {levelNum < 8 && LEVEL_META[levelNum + 1] && (
+          {levelNum < 9 && (
             <button className="btn-primary" style={{ padding: '16px 0' }}
               onClick={() => router.push(`/planner/${tripId}/level/${levelNum + 1}`)}>
-              Next: {LEVEL_META[levelNum + 1].emoji} {LEVEL_META[levelNum + 1].title} →
+              Next Level: {LEVEL_META[levelNum]?.theme} →
             </button>
           )}
           <button className="btn-back" style={{ alignSelf: 'center' }} onClick={() => router.push('/planner/' + tripId)}>
-            ← Back to Trip Map
+            ← Back to Course Map
           </button>
         </div>
       </div>
     </>
   )
 
-  // ── ACTIVE GAME ──
-  const gameType = meta.game
+  // ── GAME OVER ──
+  if (gameOver) return (
+    <div style={{ background: 'var(--ink)', minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, padding: 32, textAlign: 'center' }}>
+      <span style={{ fontSize: 64 }}>💔</span>
+      <h2 style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 28, color: 'var(--sand)' }}>Out of lives</h2>
+      <p style={{ fontSize: 14, color: 'var(--mist)', maxWidth: 280, lineHeight: 1.6 }}>You'll remember more next time. The teaching stays.</p>
+      <button className="btn-primary" style={{ padding: '14px 32px' }} onClick={() => { setQIdx(0); setLives(3); setScore(0); setGameOver(false); setFeedbackState(null) }}>
+        Try Again
+      </button>
+      <button className="btn-back" onClick={() => router.push('/planner/' + tripId)}>← Back</button>
+    </div>
+  )
+
+  const pct = Math.round(qIdx / questions.length * 100)
 
   return (
     <>
-      <Head><title>{meta.title} — {trip?.dest} — SoulScape</title></Head>
+      <Head><title>Level {levelNum}: {meta.theme} — {trip?.dest}</title></Head>
       <div style={{ background: 'var(--ink)', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
 
         {/* Header */}
-        <div style={{ padding: 'max(16px,calc(var(--st)+10px)) 18px 14px', display: 'flex', alignItems: 'center', gap: 12, borderBottom: '1px solid rgba(240,235,224,.06)', flexShrink: 0 }}>
+        <div style={{ padding: 'max(16px,calc(var(--st)+10px)) 18px 12px', display: 'flex', alignItems: 'center', gap: 12, borderBottom: '1px solid rgba(240,235,224,.05)', flexShrink: 0 }}>
           <button className="btn-back" style={{ fontSize: 12, padding: '6px 10px' }} onClick={() => router.push('/planner/' + tripId)}>✕</button>
-          <ProgressBar current={0} total={1} color={phaseColor} />
-          <Lives count={lives} />
+          {/* Progress bar */}
+          <div style={{ flex: 1, height: 6, background: 'rgba(255,255,255,.06)', borderRadius: 100, overflow: 'hidden' }}>
+            <div style={{ height: '100%', background: 'var(--amber)', borderRadius: 100, width: pct + '%', transition: 'width .4s ease' }} />
+          </div>
+          {/* Lives */}
+          <div style={{ display: 'flex', gap: 3 }}>
+            {[1,2,3].map(i => <span key={i} style={{ fontSize: 16, filter: i <= lives ? 'none' : 'grayscale(1)', opacity: i <= lives ? 1 : 0.3 }}>❤️</span>)}
+          </div>
         </div>
 
         {/* Level title */}
-        <div style={{ padding: '16px 22px 8px', flexShrink: 0 }}>
-          <p style={{ fontSize: 10, letterSpacing: 3, textTransform: 'uppercase', color: phaseColor, fontFamily: "'DM Sans',sans-serif", marginBottom: 4 }}>
-            {phase?.emoji} {phase?.name} · Level {levelNum}
+        <div style={{ padding: '14px 20px 6px', flexShrink: 0 }}>
+          <p style={{ fontSize: 10, letterSpacing: 3, textTransform: 'uppercase', color: 'var(--amber)', fontFamily: "'DM Sans',sans-serif", marginBottom: 3 }}>
+            {meta.emoji} Level {levelNum} · {meta.theme}
           </p>
-          <h1 style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 24, fontWeight: 700, color: 'var(--sand)' }}>{meta.title}</h1>
+          <p style={{ fontSize: 11, color: 'var(--mist)' }}>Question {qIdx + 1} of {questions.length}</p>
         </div>
 
-        {/* Game area */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '12px 22px 120px', WebkitOverflowScrolling: 'touch', maxWidth: 560, width: '100%', margin: '0 auto' }}>
-          {gameType === 'quiz' && gameData && (
-            <QuizGame data={gameData} levelMeta={meta} onComplete={handleComplete} onWrongAnswer={handleWrongAnswer} />
-          )}
-          {gameType === 'truefalse' && gameData && (
-            <TrueFalseGame data={gameData} onComplete={handleComplete} onWrongAnswer={handleWrongAnswer} />
-          )}
-          {gameType === 'match' && gameData && (
-            <MatchGame data={gameData} onComplete={handleComplete} onWrongAnswer={handleWrongAnswer} />
-          )}
-          {gameType === 'flashcard' && gameData && (
-            <FlashcardGame data={gameData} onComplete={handleComplete} onWrongAnswer={handleWrongAnswer} />
-          )}
-          {gameType === 'fillblank' && gameData && (
-            <FillBlankGame data={gameData} onComplete={handleComplete} onWrongAnswer={handleWrongAnswer} />
+        {/* Mechanic badge */}
+        <div style={{ padding: '0 20px 12px', flexShrink: 0 }}>
+          <span style={{ fontSize: 10, background: 'rgba(255,255,255,.06)', color: 'var(--mist)', padding: '3px 10px', borderRadius: 100, fontFamily: "'DM Sans',sans-serif", letterSpacing: 1 }}>
+            {mechanic === 'swipe' ? '👍👎 SWIPE' : mechanic === 'speed_tf' ? '⚡ TRUE / FALSE' : mechanic === 'matching' ? '🧩 MATCH' : mechanic === 'sequence' ? '🔢 SEQUENCE' : mechanic === 'slider' ? '🎚 SLIDER' : mechanic === 'visual_tap' ? '👆 TAP' : '🎯 SCENARIO'}
+          </span>
+        </div>
+
+        {/* Game content */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '4px 20px 140px', WebkitOverflowScrolling: 'touch', maxWidth: 540, width: '100%', margin: '0 auto' }}>
+          {mechanic === 'swipe'      && <SwipeGame    q={q} onAnswer={handleAnswer} key={qIdx} />}
+          {mechanic === 'scenario'   && <ScenarioGame q={q} onAnswer={handleAnswer} key={qIdx} />}
+          {mechanic === 'speed_tf'   && <SpeedTFGame  q={q} onAnswer={handleAnswer} key={qIdx} />}
+          {mechanic === 'matching'   && <MatchingGame q={q} onAnswer={handleAnswer} key={qIdx} />}
+          {mechanic === 'sequence'   && <SequenceGame q={q} onAnswer={handleAnswer} key={qIdx} />}
+          {mechanic === 'slider'     && <SliderGame   q={q} onAnswer={handleAnswer} key={qIdx} />}
+          {mechanic === 'visual_tap' && <VisualTapGame q={q} onAnswer={handleAnswer} key={qIdx} />}
+          {/* Fallback for unknown mechanics */}
+          {!['swipe','scenario','speed_tf','matching','sequence','slider','visual_tap'].includes(mechanic) && (
+            <ScenarioGame q={q} onAnswer={handleAnswer} key={qIdx} />
           )}
         </div>
+
+        {/* Feedback banner */}
+        {feedbackState && (
+          <FeedbackBanner correct={feedbackState.correct} feedbackText={feedbackState.text} onNext={nextQuestion} />
+        )}
       </div>
     </>
   )
