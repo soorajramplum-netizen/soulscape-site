@@ -122,7 +122,8 @@ export default function Home() {
           <span style={s.t1}>Soul</span>
           <span style={s.t2}>Scape</span>
         </h1>
-        <p style={s.sub}>By Sooraj Ram.</p>
+        <p style={{ fontSize: 11, color: 'rgba(154,136,120,.5)', letterSpacing: 3, textTransform: 'uppercase', fontFamily: "'DM Sans',sans-serif", marginBottom: 18, marginTop: -8 }}>by Sooraj Ram</p>
+        <p style={s.sub}>A place in this world speaks to exactly how you feel right now.</p>
 
         {/* City input */}
         <div style={s.cityRow}>
