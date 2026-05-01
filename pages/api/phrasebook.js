@@ -24,11 +24,30 @@ export default function handler(req, res) {
     }
   })
 
+  // BCP-47 codes for Web Speech API
+  const LANG_CODES = {
+    japanese:'ja-JP', thai:'th-TH', indonesian:'id-ID', italian:'it-IT',
+    french:'fr-FR', spanish:'es-ES', portuguese:'pt-PT', greek:'el-GR',
+    vietnamese:'vi-VN', moroccan:'ar-MA', croatian:'hr-HR', turkish:'tr-TR',
+    hindi:'hi-IN', nepali:'ne-NP', mandarin:'zh-CN', german:'de-DE',
+    slovenian:'sl-SI', norwegian:'nb-NO', icelandic:'is-IS', danish:'da-DK',
+    dutch:'nl-NL', polish:'pl-PL', czech:'cs-CZ', georgian:'ka-GE',
+    malay:'ms-MY', russian:'ru-RU', swahili:'sw-KE', latinspanish:'es-MX',
+    brazilianportuguese:'pt-BR', english:'en-US', finnish:'fi-FI',
+    swedish:'sv-SE', hungarian:'hu-HU', romanian:'ro-RO', burmese:'my-MM',
+    mongolian:'mn-MN', tibetan:'bo-CN', amharic:'am-ET', kinyarwanda:'rw-RW',
+    uzbek:'uz-UZ', turkmen:'tk-TM', arabic:'ar-OM', cantonese:'zh-HK',
+    irish:'ga-IE', maltese:'mt-MT', singlish:'en-SG', lao:'lo-LA',
+    seychellois:'fr-SC',
+  }
+
   return res.json({
     language: pb.language,
     flag: pb.flag,
     script: pb.script,
     phrases,
     culturalTips: pb.tips || [],
+    langKey,
+    langCode: LANG_CODES[langKey] || 'en-US',
   })
 }

@@ -547,57 +547,143 @@ function Chip({ emoji, text }) {
   )
 }
 
-function PhraseCard({ p }) {
+// ── BCP-47 language codes for Web Speech API ───────────────────────────────
+const LANG_CODES = {
+  japanese:'ja-JP',thai:'th-TH',indonesian:'id-ID',italian:'it-IT',
+  french:'fr-FR',spanish:'es-ES',portuguese:'pt-PT',greek:'el-GR',
+  vietnamese:'vi-VN',moroccan:'ar-MA',croatian:'hr-HR',turkish:'tr-TR',
+  hindi:'hi-IN',nepali:'ne-NP',mandarin:'zh-CN',german:'de-DE',
+  slovenian:'sl-SI',norwegian:'nb-NO',icelandic:'is-IS',danish:'da-DK',
+  dutch:'nl-NL',polish:'pl-PL',czech:'cs-CZ',georgian:'ka-GE',
+  malay:'ms-MY',russian:'ru-RU',swahili:'sw-KE',latinspanish:'es-MX',
+  brazilianportuguese:'pt-BR',english:'en-US',finnish:'fi-FI',
+  swedish:'sv-SE',hungarian:'hu-HU',romanian:'ro-RO',burmese:'my-MM',
+  mongolian:'mn-MN',tibetan:'bo-CN',amharic:'am-ET',kinyarwanda:'rw-RW',
+  uzbek:'uz-UZ',turkmen:'tk-TM',arabic:'ar-OM',cantonese:'zh-HK',
+  irish:'ga-IE',maltese:'mt-MT',singlish:'en-SG',lao:'lo-LA',seychellois:'fr-SC',
+}
+
+function speakText(text, langCode) {
+  if (typeof window === 'undefined' || !window.speechSynthesis) return
+  window.speechSynthesis.cancel()
+  const utt = new window.SpeechSynthesisUtterance(text)
+  utt.lang = langCode || 'en-US'
+  utt.rate = 0.85
+  utt.pitch = 1.0
+  const voices = window.speechSynthesis.getVoices()
+  const exact = voices.find(v => v.lang === langCode)
+  const partial = voices.find(v => v.lang.startsWith((langCode || 'en').slice(0, 2)))
+  if (exact) utt.voice = exact
+  else if (partial) utt.voice = partial
+  window.speechSynthesis.speak(utt)
+}
+
+function PhraseCard({ p, langCode }) {
   const [open, setOpen] = useState(false)
+  const [speaking, setSpeaking] = useState(false)
+  const [speakingGuide, setSpeakingGuide] = useState(false)
+
+  function handleSpeakNative(e) {
+    e.stopPropagation()
+    setSpeaking(true)
+    speakText(p.local, langCode)
+    setTimeout(() => setSpeaking(false), 2500)
+  }
+
+  function handleSpeakGuide(e) {
+    e.stopPropagation()
+    setSpeakingGuide(true)
+    speakText(p.pronunciation, 'en-US') // phonetic is always read in English
+    setTimeout(() => setSpeakingGuide(false), 2500)
+  }
+
   return (
-    <div onClick={() => setOpen(o => !o)} style={{
-      background: 'var(--ink2)', borderRadius: 12, cursor: 'pointer',
-      border: open ? '1px solid rgba(232,146,74,.35)' : '1px solid rgba(240,235,224,.06)',
-      overflow: 'hidden', transition: 'border-color .2s',
-    }}>
-      {/* Always visible: category + English */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '13px 16px' }}>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <p style={{ fontSize: 9, letterSpacing: 2, textTransform: 'uppercase', color: 'var(--amber)', marginBottom: 3, fontFamily: "'DM Sans',sans-serif" }}>
+    <div style={{ background:'var(--ink2)', borderRadius:12, border: open ? '1px solid rgba(232,146,74,.35)' : '1px solid rgba(240,235,224,.06)', overflow:'hidden', transition:'border-color .2s' }}>
+
+      {/* Header row — always visible */}
+      <div onClick={() => setOpen(o => !o)} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'13px 16px', cursor:'pointer' }}>
+        <div style={{ flex:1, minWidth:0 }}>
+          <p style={{ fontSize:9, letterSpacing:2, textTransform:'uppercase', color:'var(--amber)', marginBottom:3, fontFamily:"'DM Sans',sans-serif" }}>
             {p.emoji} {p.category}
           </p>
-          <p style={{ fontSize: 15, color: 'var(--sand)', fontWeight: 600, margin: 0 }}>{String(p.english || '')}</p>
+          <p style={{ fontSize:15, color:'var(--sand)', fontWeight:600, margin:0 }}>{String(p.english||'')}</p>
         </div>
-        <span style={{ color: open ? 'var(--amber)' : 'var(--mist)', fontSize: 18, marginLeft: 12, flexShrink: 0, transition: 'color .2s' }}>
-          {open ? '−' : '+'}
-        </span>
+        <div style={{ display:'flex', alignItems:'center', gap:8, flexShrink:0 }}>
+          {/* Quick-speak button — visible even when collapsed */}
+          <button onClick={handleSpeakNative} title="Hear in native language" style={{
+            background: speaking ? 'rgba(88,232,122,.2)' : 'rgba(255,255,255,.06)',
+            border:`1px solid ${speaking ? '#58E87A' : 'rgba(255,255,255,.12)'}`,
+            borderRadius:8, width:32, height:32,
+            display:'flex', alignItems:'center', justifyContent:'center',
+            cursor:'pointer', fontSize:14, transition:'all .2s',
+            color: speaking ? '#58E87A' : 'rgba(255,255,255,.55)',
+          }}>
+            {speaking ? '🔊' : '▶'}
+          </button>
+          <span style={{ color: open ? 'var(--amber)' : 'var(--mist)', fontSize:18, transition:'color .2s' }}>
+            {open ? '−' : '+'}
+          </span>
+        </div>
       </div>
 
-      {/* Expanded: script + pronunciation */}
+      {/* Expanded panel */}
       {open && (
-        <div style={{ borderTop: '1px solid rgba(255,255,255,.06)', padding: '14px 16px 16px', background: 'rgba(232,146,74,.04)' }}>
-          {/* Native script — large, for showing to locals */}
-          <div style={{ background: 'rgba(0,0,0,.2)', borderRadius: 10, padding: '14px 16px', marginBottom: 10, textAlign: 'center' }}>
-            <p style={{ fontSize: 9, letterSpacing: 2, textTransform: 'uppercase', color: 'rgba(232,146,74,.6)', marginBottom: 6, fontFamily: "'DM Sans',sans-serif" }}>
+        <div style={{ borderTop:'1px solid rgba(255,255,255,.06)', padding:'14px 16px 16px', background:'rgba(232,146,74,.03)' }}>
+
+          {/* Native script card */}
+          <div style={{ background:'rgba(0,0,0,.22)', borderRadius:12, padding:'16px', marginBottom:12, textAlign:'center' }}>
+            <p style={{ fontSize:9, letterSpacing:2, textTransform:'uppercase', color:'rgba(232,146,74,.55)', marginBottom:8, fontFamily:"'DM Sans',sans-serif" }}>
               SHOW THIS TO LOCALS
             </p>
-            <p style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 28, color: 'var(--amber)', lineHeight: 1.4, margin: 0 }}>
-              {String(p.local || '')}
+            <p style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:30, color:'var(--amber)', lineHeight:1.4, margin:'0 0 14px' }}>
+              {String(p.local||'')}
             </p>
+            {/* Speak native button */}
+            <button onClick={handleSpeakNative} style={{
+              background: speaking ? 'rgba(88,232,122,.2)' : 'rgba(232,146,74,.15)',
+              border:`1.5px solid ${speaking ? '#58E87A' : 'rgba(232,146,74,.4)'}`,
+              borderRadius:100, padding:'9px 22px',
+              color: speaking ? '#58E87A' : 'var(--amber)',
+              fontSize:13, fontWeight:600, cursor:'pointer',
+              fontFamily:"'DM Sans',sans-serif", transition:'all .2s',
+              display:'inline-flex', alignItems:'center', gap:8,
+            }}>
+              {speaking ? '🔊 Playing…' : '▶ Hear it spoken'}
+            </button>
           </div>
-          {/* Pronunciation — for speaking */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span style={{ fontSize: 18 }}>🔊</span>
-            <div>
-              <p style={{ fontSize: 9, letterSpacing: 2, textTransform: 'uppercase', color: 'rgba(88,232,122,.6)', marginBottom: 3, fontFamily: "'DM Sans',sans-serif" }}>
+
+          {/* Pronunciation guide */}
+          <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:12 }}>
+            <div style={{ flex:1 }}>
+              <p style={{ fontSize:9, letterSpacing:2, textTransform:'uppercase', color:'rgba(88,232,122,.6)', marginBottom:4, fontFamily:"'DM Sans',sans-serif" }}>
                 SAY IT LIKE THIS
               </p>
-              <p style={{ fontSize: 16, color: '#58E87A', fontWeight: 600, margin: 0, fontFamily: "'DM Sans',sans-serif" }}>
-                {String(p.pronunciation || '')}
+              <p style={{ fontSize:16, color:'#58E87A', fontWeight:600, margin:0, fontFamily:"'DM Sans',sans-serif", lineHeight:1.5 }}>
+                {String(p.pronunciation||'')}
               </p>
             </div>
+            {/* Speak phonetic button */}
+            <button onClick={handleSpeakGuide} title="Hear phonetic guide" style={{
+              background: speakingGuide ? 'rgba(88,232,122,.15)' : 'rgba(88,232,122,.06)',
+              border:`1px solid ${speakingGuide ? '#58E87A' : 'rgba(88,232,122,.2)'}`,
+              borderRadius:8, minWidth:36, height:36, flexShrink:0,
+              display:'flex', alignItems:'center', justifyContent:'center',
+              cursor:'pointer', fontSize:12, fontWeight:700,
+              color: speakingGuide ? '#58E87A' : 'rgba(88,232,122,.6)',
+              transition:'all .2s', fontFamily:"'DM Sans',sans-serif",
+            }}>
+              Aa
+            </button>
           </div>
+
+          <p style={{ fontSize:10, color:'rgba(154,136,120,.35)', marginTop:10, margin:'10px 0 0', lineHeight:1.5 }}>
+            ▶ native pronunciation · Aa phonetic guide (English speaker voice)
+          </p>
         </div>
       )}
     </div>
   )
 }
-
 
 function CuisineDisplay({ data }) {
   if (data.error) return <ErrBox msg={data.error} />
@@ -644,22 +730,30 @@ function CuisineDisplay({ data }) {
 
 function PhraseDisplay({ data }) {
   if (data.error) return <ErrBox msg={data.error} />
+
+  // Derive BCP-47 code from language key returned by API
+  const langCode = data.langCode || LANG_CODES[data.langKey] || 'en-US'
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
       {data.language && (
         <div style={{ background: 'linear-gradient(135deg,rgba(232,146,74,.12),rgba(232,146,74,.04))', border: '1px solid rgba(232,146,74,.3)', borderRadius: 14, padding: '14px 18px', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 12 }}>
           <span style={{ fontSize: 28 }}>{data.flag || '🗣️'}</span>
-          <div>
+          <div style={{ flex: 1 }}>
             <p style={{ fontSize: 16, color: 'var(--amber)', fontWeight: 700, margin: 0, fontFamily: "'Cormorant Garamond',serif" }}>{String(data.language)}</p>
             {data.script && <p style={{ fontSize: 11, color: 'var(--mist)', margin: '2px 0 0' }}>{data.script}</p>}
           </div>
+          {/* Test TTS for this language */}
+          <button onClick={() => speak('Hello', langCode)} style={{ background: 'rgba(232,146,74,.15)', border: '1px solid rgba(232,146,74,.3)', borderRadius: 8, padding: '6px 12px', color: 'var(--amber)', fontSize: 12, cursor: 'pointer', fontFamily: "'DM Sans',sans-serif" }}>
+            🔊 Test voice
+          </button>
         </div>
       )}
       <p style={{ fontSize: 11, color: 'var(--mist)', marginBottom: 4, fontFamily: "'DM Sans',sans-serif" }}>
-        Tap any phrase to see the native script + how to say it
+        ▶ on each card speaks the native phrase · Aa speaks the phonetic guide
       </p>
       {Array.isArray(data.phrases) && data.phrases.map((p, i) => (
-        <PhraseCard key={i} p={p} />
+        <PhraseCard key={i} p={p} langCode={langCode} />
       ))}
       {Array.isArray(data.culturalTips) && data.culturalTips.length > 0 && (
         <div style={{ background: 'var(--ink2)', borderRadius: 12, padding: '14px 16px', marginTop: 8 }}>
